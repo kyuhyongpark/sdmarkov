@@ -230,15 +230,46 @@ def get_bitflip_matrix(hd: np.ndarray, size: int, DEBUG: bool = False) -> np.nda
     return bitflip_matrix
 
 
-# get unity matrix of size n by n
-def get_unity_matrix(n):
-    unity_matrix = np.zeros((n,n))
+def get_identity_matrix(n: int) -> np.ndarray:
+    """
+    Generate a identity matrix of size n x n.
+
+    Parameters
+    ----------
+    n : int
+        The size of the identity matrix, which is a square matrix.
+
+    Returns
+    -------
+    numpy.ndarray
+        An n x n identity matrix with ones on the main diagonal and zeros elsewhere.
+
+    """
+
+    identity_matrix: np.ndarray = np.zeros((n,n))
     for i in range(n):
-        unity_matrix[i][i] = 1
-    return unity_matrix
+        identity_matrix[i][i] = 1
+    return identity_matrix
 
 
-# get uniform matrix of size n by n
-def get_uniform_matrix(n):
-    uniform_matrix = np.ones((n,n))
-    return uniform_matrix/(n*n)
+def get_uniform_matrix(n: int) -> np.ndarray:
+    """
+    Generate a uniform matrix of size n x n.
+
+    Parameters
+    ----------
+    n : int
+        The size of the uniform matrix, which is a square matrix.
+
+    Returns
+    -------
+    np.ndarray
+        An n x n matrix where all elements are equal to 1/n.
+
+    Notes
+    -----
+    A uniform matrix is a matrix where all elements have the same value, in this case 1/n.
+    """
+
+    uniform_matrix: np.ndarray = np.ones((n, n))
+    return uniform_matrix / n

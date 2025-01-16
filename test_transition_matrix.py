@@ -1,7 +1,7 @@
 import unittest
+
 import numpy as np
 import networkx as nx
-
 from pyboolnet.state_transition_graphs import primes2stg
 from pyboolnet.external.bnet2primes import bnet_text2primes
 
@@ -277,8 +277,6 @@ class TestGetBitflipMatrix(unittest.TestCase):
              [0, 1, 0, 0],
              [1, 0, 0, 0]])
         self.assertTrue(np.allclose(get_bitflip_matrix(hd, size), expected))
-
-
 
 
 if __name__ == '__main__':

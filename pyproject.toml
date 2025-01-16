@@ -7,6 +7,7 @@ authors = [{ name = "Kyu Hyong Park", email = "kjp5774@psu.edu" }]
 readme = "README.md"
 license = { file = "LICENSE" }
 dependencies = [
-    "biobalm",
     "ipykernel",
+    "biobalm",
+    "pyboolnet @ git+https://github.com/hklarner/pyboolnet",
 ]
