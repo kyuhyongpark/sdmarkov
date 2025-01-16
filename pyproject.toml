@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+authors = [{ name = "Kyu Hyong Park", email = "kjp5774@psu.edu" }]
+readme = "README.md"
+license = { file = "LICENSE" }
+dependencies = [
+    "biobalm",
+    "ipykernel",
+]
