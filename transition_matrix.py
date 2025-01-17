@@ -58,6 +58,8 @@ def get_transition_matrix(stg: nx.DiGraph, DEBUG: bool = False) -> np.ndarray:
     ----------
     stg : networkx DiGraph
         The state transition graph.
+    DEBUG : bool, optional
+        If set to True, performs additional checks on the input data.
 
     Returns
     -------
