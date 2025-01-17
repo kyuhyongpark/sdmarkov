@@ -2,7 +2,7 @@ from itertools import product
 
 import biobalm
 
-def get_sd_nodes(bnet: str) -> tuple[list[str], list[dict[str, int]]]:
+def get_sd_nodes(bnet: str, minimal: bool = False) -> tuple[list[str], list[dict[str, int]]]:
     """
     Given a Boolean network as a string in bnet format, returns a tuple containing
     a list of node names and a list of dictionaries, where each dictionary corresponds
@@ -15,7 +15,9 @@ def get_sd_nodes(bnet: str) -> tuple[list[str], list[dict[str, int]]]:
     bnet : str
         The Boolean network as a string, with nodes and their update rules
         separated by commas.
-
+    minimal : bool, optional
+        If True, only nodes that are minimal trapspaces are included in the output.
+        
     Returns
     -------
     tuple[list[str], list[dict[str, int]]]
@@ -36,7 +38,10 @@ def get_sd_nodes(bnet: str) -> tuple[list[str], list[dict[str, int]]]:
     )
 
     sd_nodes = []
+
     for node in sd.node_ids():
+        if minimal and not sd.node_is_minimal(node):
+            continue
         sd_node = {k: v for k, v in sorted(sd.node_data(node)["space"].items())}
         sd_nodes.append(sd_node)
 
@@ -284,6 +289,8 @@ def get_SD_node_states(
     SD_nodes: list[dict[str, int]]
         A list of dictionaries where each dictionary represents the state of a node 
         in the succession diagram. The keys are node names, and the values are the node states (0 or 1).
+    DEBUG: bool, optional
+        If set to True, performs additional checks on the input data.
 
     Returns
     -------

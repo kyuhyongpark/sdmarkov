@@ -59,6 +59,20 @@ class TestGetSdNodes(unittest.TestCase):
 
         self.assertEqual(get_sd_nodes(bnet), expected_output)
 
+    def test_valid_bnet_minimal(self):
+        bnet = """
+        A, A | B & C
+        B, B & !C
+        C, B & !C | !C & !D | !B & C & D
+        D, !A & !B & !C & !D | !A & C & D
+        """
+        expected_output = (['A', 'B', 'C', 'D'],
+                           [{'A': 0, 'B': 0, 'C': 1, 'D': 1},
+                            {'A': 1, 'B': 0, 'D': 0},
+                            ])
+
+        self.assertEqual(get_sd_nodes(bnet, minimal=True), expected_output)
+
     def test_single_node_bnet(self):
         bnet = "A, A"
         expected_output = (['A'], [{}, {'A': 0}, {'A': 1}])
