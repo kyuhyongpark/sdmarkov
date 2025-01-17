@@ -73,7 +73,7 @@ def random_grouping(
     sd_indexes: list[list[int]],
     null_indexes: list[list[int]],
     smallest_group_size: int = 1,
-    seed: int = 0,
+    seed: int|None = None,
     DEBUG: bool = False,
 ) -> list[list[int]]:
     """
@@ -87,8 +87,8 @@ def random_grouping(
         The groups of indexes of the states in the minimal trapspaces and the transient states.
     smallest_group_size : int, optional
         The smallest number of elements in each group. Defaults to 1.
-    seed : int, optional
-        The seed for the random number generator. Defaults to 0.
+    seed : int|None, optional
+        The random seed to use. Defaults to None.
     DEBUG : bool, optional
         If True, performs additional checks. Defaults to False.
 
@@ -140,7 +140,7 @@ def divide_list_into_sublists(
     lst: list,
     N: int,
     m: int,
-    seed: int = 0,
+    seed: int|None = None,
 ) -> list[list]:
     """
     Divide a list into N sublists of at least m elements each.
@@ -153,8 +153,8 @@ def divide_list_into_sublists(
         The number of sublists to divide the list into.
     m : int
         The minimum size of each sublist.
-    seed : int, optional
-        The random seed to use.  Defaults to 0.
+    seed : int|None, optional
+        The random seed to use.
 
     Returns
     -------
@@ -166,7 +166,9 @@ def divide_list_into_sublists(
     >>> divide_list_into_sublists([1, 2, 3, 4, 5], 2, 2)
     [[1, 3, 4], [2, 5]]
     """
-    random.seed(seed)
+    # Set the random seed
+    if seed is not None:
+        random.seed(seed)
 
     # Check if N is valid
     if N < 1 or N > len(lst):
