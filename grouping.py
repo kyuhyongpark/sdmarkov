@@ -30,9 +30,28 @@ def sd_grouping(bnet: str, DEBUG: bool = False) -> list[list[int]]:
     """
     nodes, sd_nodes = get_sd_nodes(bnet)
 
+    # if DEBUG:
+    #     print("nodes:")
+    #     for node in nodes:
+    #         print(node)
+
+    #     print("sd_nodes:")
+    #     for node in sd_nodes:
+    #         print(node)
+
     sd_node_states = get_SD_node_states(nodes, sd_nodes, DEBUG=DEBUG)
 
+    # if DEBUG:
+    #     print("sd_node_states:")
+    #     for state in sd_node_states:
+    #         print(state)
+
     indexes = states_to_indexes(sd_node_states, DEBUG=DEBUG)
+
+    # if DEBUG:
+    #     print("sd_node indexes:")
+    #     for index in indexes:
+    #         print(index)
 
     return indexes
 
@@ -61,7 +80,9 @@ def null_grouping(bnet: str, DEBUG: bool = False) -> list[list[int]]:
     """
     nodes, min_trap_nodes = get_sd_nodes(bnet, minimal=True)
 
-    min_trap_nodes.insert(0, {})
+    # Make sure to add the group for all transient states
+    if {} not in min_trap_nodes:
+        min_trap_nodes.insert(0, {})
 
     min_trap_states = get_SD_node_states(nodes, min_trap_nodes, DEBUG=DEBUG)
 

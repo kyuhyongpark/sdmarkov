@@ -10,4 +10,7 @@ dependencies = [
     "ipykernel",
     "biobalm",
     "pyboolnet @ git+https://github.com/hklarner/pyboolnet",
+    "pystablemotifs",
+    "tqdm",
+    "ipywidgets",
 ]

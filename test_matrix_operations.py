@@ -79,6 +79,17 @@ class TestCompressMatrix(unittest.TestCase):
         expected_result = np.array([[3/4, 1/4], [0, 1]])
         self.assertTrue(np.allclose(compress_matrix(matrix, index_groups), expected_result))
 
+    def test_empty_index_group(self):
+        matrix = np.array([[1, 0, 0], [0, 1/2, 1/2], [0, 0, 1]])
+        index_groups = [[0, 1], []]
+        expected_result = np.array([[3/4, 1/4], [0, 1]])
+        self.assertTrue(np.allclose(compress_matrix(matrix, index_groups), expected_result))
+
+    def test_no_compression(self):
+        matrix = np.array([[1, 0, 0], [0, 1/2, 1/2], [0, 0, 1]])
+        index_groups = [[0], [1], [2]]
+        self.assertTrue(np.allclose(compress_matrix(matrix, index_groups), matrix))
+
     def test_multiple_index_groups(self):
         matrix = np.array([[1, 0, 0], [0, 1/2, 1/2], [0, 0, 1]])
         index_groups = [[0, 1], [2]]
@@ -160,6 +171,12 @@ class TestExpandMatrix(unittest.TestCase):
     def test_example(self):
         matrix = np.array([[3/4, 1/4], [0, 1]])
         index_groups = [[0, 1], [2]]
+        expected_result = np.array([[3/8, 3/8, 1/4], [3/8, 3/8, 1/4], [0, 0, 1]])
+        self.assertTrue(np.allclose(expand_matrix(matrix, index_groups), expected_result))
+
+    def test_empty_index_group(self):
+        matrix = np.array([[3/4, 1/4], [0, 1]])
+        index_groups = [[0, 1], [], [2]]
         expected_result = np.array([[3/8, 3/8, 1/4], [3/8, 3/8, 1/4], [0, 0, 1]])
         self.assertTrue(np.allclose(expand_matrix(matrix, index_groups), expected_result))
 

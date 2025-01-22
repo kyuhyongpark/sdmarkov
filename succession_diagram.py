@@ -2,7 +2,7 @@ from itertools import product
 
 import biobalm
 
-def get_sd_nodes(bnet: str, minimal: bool = False) -> tuple[list[str], list[dict[str, int]]]:
+def get_sd_nodes(bnet: str, minimal: bool = False, DEBUG: bool = False) -> tuple[list[str], list[dict[str, int]]]:
     """
     Given a Boolean network as a string in bnet format, returns a tuple containing
     a list of node names and a list of dictionaries, where each dictionary corresponds
@@ -17,6 +17,8 @@ def get_sd_nodes(bnet: str, minimal: bool = False) -> tuple[list[str], list[dict
         separated by commas.
     minimal : bool, optional
         If True, only nodes that are minimal trapspaces are included in the output.
+    DEBUG : bool, optional
+        If True, performs additional checks.
         
     Returns
     -------
@@ -45,7 +47,7 @@ def get_sd_nodes(bnet: str, minimal: bool = False) -> tuple[list[str], list[dict
         sd_node = {k: v for k, v in sorted(sd.node_data(node)["space"].items())}
         sd_nodes.append(sd_node)
 
-    sd_nodes = sort_sd_nodes(nodes, sd_nodes)
+    sd_nodes = sort_sd_nodes(nodes, sd_nodes, DEBUG=DEBUG)
 
     return nodes, sd_nodes
 
@@ -198,9 +200,9 @@ def generate_states(
             binary_state = ''.join(str(state[node]) for node in nodes)
             binary_states.append(binary_state)
 
-    if DEBUG:
-        if len(binary_states) == 0:
-            print("No valid states found")
+    # if DEBUG:
+    #     if len(binary_states) == 0:
+    #         print("No valid states found")
 
     return binary_states
 
@@ -268,6 +270,10 @@ def get_binary_states(
         if valid:
             valid_exclude_values.append(exclude_values)
 
+    # if DEBUG:
+    #     print(f"node values: {node_values}")
+    #     print(f"valid exclude values: {valid_exclude_values}")
+
     # Generate all binary states that agree with node_values
     return generate_states(nodes, node_values, valid_exclude_values, DEBUG=DEBUG)
 
@@ -298,6 +304,11 @@ def get_SD_node_states(
         A list of lists, where each sublist contains binary state strings corresponding 
         to each SD node.
 
+    Notes
+    -----
+    It may happen that certain sd nodes do not have a corresponding binary state.
+    In that case, the corresponding sublist in the returned list will be empty.
+
     Examples
     --------
     >>> nodes = ['A', 'B', 'C', 'D']
@@ -325,9 +336,9 @@ def get_SD_node_states(
                 raise ValueError(f"SD_node {SD_node} is not unique")
             seen.add(dict_frozen_set)
 
-        # check if {} is in SD_nodes
-        if {} not in SD_nodes:
-            raise ValueError("root node is not in SD_nodes")
+        # Check if SD_nodes is not empty
+        if not SD_nodes:
+            raise ValueError("SD_nodes is empty")
 
     SD_node_states = []  # Initialize a list to store states for each SD node
     
@@ -336,11 +347,31 @@ def get_SD_node_states(
         other_SD_nodes = [node for node in SD_nodes if node != SD_node]
         
         # Generate binary states for the current SD node
-        states = get_binary_states(nodes, SD_node, other_SD_nodes)
+        states = get_binary_states(nodes, SD_node, other_SD_nodes, DEBUG=DEBUG)
 
         # Append the generated states to the SD_node_states list
         SD_node_states.append(states)
     
+    if DEBUG:
+        # The number of all states must be equal to 2**N, where N is the number of nodes
+        N = len(nodes)
+        total_states = sum(len(states) for states in SD_node_states)
+        if total_states != 2**N:
+            # print nodes
+            # print("Nodes: ", nodes)
+            # find the duplicate states
+            all_states = [state for states in SD_node_states for state in states]
+            duplicate_states = [state for state in all_states if all_states.count(state) > 1]
+            if duplicate_states:
+                # for state in duplicate_states:
+                    # print(f"Duplicate state: {state}")
+                    # for i, state_group in enumerate(SD_node_states):
+                        # if state in state_group:
+                            # print(f"SD node: {SD_nodes[i]}")
+
+                raise ValueError(f"Duplicate states found: {duplicate_states}")
+            raise ValueError(f"The number of all states {total_states} is not equal to 2**(N={N})")
+
     return SD_node_states  # Return the list of states for each SD node
 
 
@@ -372,7 +403,7 @@ def states_to_indexes(state_groups: list[list[str]], DEBUG: bool = False) -> lis
         if len(set(lengths)) != 1:
             raise ValueError("Not all states have the same length")
         
-        # Check if all gropus are mutually exclusive
+        # Check if all groups are mutually exclusive
         all_states = [state for state_group in state_groups for state in state_group]
         if len(all_states) != len(set(all_states)):
             raise ValueError("States are not mutually exclusive (duplicates found)")

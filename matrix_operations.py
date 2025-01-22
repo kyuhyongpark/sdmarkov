@@ -38,9 +38,69 @@ def reorder_matrix(matrix: np.ndarray, index_list: list[int]) -> np.ndarray:
     return reordered_matrix
 
 
-def npower(matrix, n):
-    return np.linalg.matrix_power(matrix, n)
+def nsquare(matrix: np.ndarray, n: int, DEBUG: bool = False) -> np.ndarray:
 
+    """
+    TODO: For the cases where the matrix will not converge for large n,
+    we need options to average the outcome over some value.
+
+    Compute the nth power of a matrix.
+
+    Parameters
+    ----------
+    matrix : numpy.ndarray
+        The matrix to be powered.
+    n : int
+        The matrix will be squared n times.
+    DEBUG : bool
+        If True, perform basic checks on the matrix.
+
+    Returns
+    -------
+    powered_matrix : numpy.ndarray
+        The result of raising the matrix to the nth power.
+
+    Raises
+    ------
+    ValueError
+        If the matrix is not square, or if the elements of the matrix are not between 0 and 1, or if the rows of the matrix do not sum to 1.
+    """
+
+    if DEBUG:
+        # Check that the matrix is square
+        if matrix.shape[0] != matrix.shape[1]:
+            raise ValueError("The matrix must be square.")
+
+        # Check that the elements of the array are between 0 and 1, with some tolerance
+        if not np.all(matrix >= 0 - 1e-16) or not np.all(matrix <= 1 + 1e-16):
+            raise ValueError("All elements of the matrix must be between 0 and 1. Max: {}, Min: {}".format(np.max(matrix), np.min(matrix)))
+
+        # Check that every row of the matrix sums to 1
+        if not np.allclose(np.sum(matrix, axis=1), np.ones(matrix.shape[1])):
+            raise ValueError("Every row of the matrix must sum to 1.")
+        
+        # Make the matrix datatype float64
+        matrix = matrix.astype(np.float64)
+
+    squared_matrix = matrix
+
+    for i in range(n):
+        squared_matrix = np.linalg.matrix_power(squared_matrix, 2)
+
+        # Set small negative values to zero
+        squared_matrix[squared_matrix < 0] = 0
+
+        # Normalize the matrix so that the sum of each row is 1
+        squared_matrix /= np.sum(squared_matrix, axis=1, keepdims=True)
+
+    if DEBUG:
+        # Check that the result using n+1 is close to the result using n
+        double_squared_matrix = np.linalg.matrix_power(squared_matrix, 2)
+        double_squared_matrix[double_squared_matrix < 0] = 0
+        double_squared_matrix /= np.sum(double_squared_matrix, axis=1, keepdims=True)
+        assert np.allclose(squared_matrix, double_squared_matrix), f"The result using n+1 {double_squared_matrix} is not close to the result using n {squared_matrix}."
+
+    return squared_matrix
 
 def compress_matrix(
     matrix: np.ndarray,
@@ -89,7 +149,7 @@ def compress_matrix(
 
         # Check that the elements of the array are between 0 and 1
         if not np.all(matrix >= 0) or not np.all(matrix <= 1):
-            raise ValueError("All elements of the matrix must be between 0 and 1.")
+            raise ValueError("All elements of the matrix must be between 0 and 1. Max: {}, Min: {}".format(np.max(matrix), np.min(matrix)))
         
         # Check that every row of the matrix sums to 1
         if not np.allclose(np.sum(matrix, axis=1), np.ones(matrix.shape[1])):
@@ -113,14 +173,23 @@ def compress_matrix(
     row_merged = np.delete(matrix, all_indexes, axis=0)
 
     for group in reversed(index_groups):
+        if len(group) == 0:
+            continue
         insert_row = np.mean(matrix[group], axis=0)
         row_merged = np.insert(row_merged, 0, insert_row, axis=0)
 
     merged = np.delete(row_merged, all_indexes, axis=1)
 
     for group in reversed(index_groups):
+        if len(group) == 0:
+            continue
         insert_column = np.sum(row_merged[:,group], axis=1)
         merged = np.insert(merged, 0, insert_column, axis=1)
+
+    # Ensure that the matrix is stochastic
+    merged[merged < 0] = 0
+
+    merged /= np.sum(merged, axis=1, keepdims=True)
 
     return merged
 
@@ -161,7 +230,7 @@ def expand_matrix(matrix: np.ndarray, index_groups: list[list[int]], DEBUG: bool
 
         # Check that the elements of the array are between 0 and 1
         if not np.all(matrix >= 0) or not np.all(matrix <= 1):
-            raise ValueError("All elements of the matrix must be between 0 and 1.")
+            raise ValueError("All elements of the matrix must be between 0 and 1. Max: {}, Min: {}".format(np.max(matrix), np.min(matrix)))
         
         # Check that every row of the matrix sums to 1
         if not np.allclose(np.sum(matrix, axis=1), np.ones(matrix.shape[1])):
@@ -173,9 +242,10 @@ def expand_matrix(matrix: np.ndarray, index_groups: list[list[int]], DEBUG: bool
                 if set(index_groups[i]).intersection(set(index_groups[j])):
                     raise ValueError("Index groups must be mutually exclusive.")
         
-        # Check that the number of index groups is not greater than the size of the matrix
-        if len(index_groups) > matrix.shape[0]:
-            raise ValueError("The number of index groups must be less than or equal to the size of the matrix.")
+        # Check that the number of non-empty index groups is not greater than the size of the matrix
+        non_empty_groups = [group for group in index_groups if group]
+        if len(non_empty_groups) > matrix.shape[0]:
+            raise ValueError("The number of non-empty index groups must be less than or equal to the size of the matrix.")
         
 
     compressed_matrix_dimension = len(matrix)
@@ -184,17 +254,22 @@ def expand_matrix(matrix: np.ndarray, index_groups: list[list[int]], DEBUG: bool
     for group in index_groups:
         all_indexes.extend(group)
 
-    expanded_matrix_dimension = compressed_matrix_dimension - len(index_groups) + len(all_indexes)
+    non_empty_groups = [group for group in index_groups if group]
+
+    expanded_matrix_dimension = compressed_matrix_dimension - len(non_empty_groups) + len(all_indexes)
 
     row_expanded = np.zeros((expanded_matrix_dimension, compressed_matrix_dimension))
 
     j = 0
     for i in range(expanded_matrix_dimension):
         if i not in all_indexes:
-            row_expanded[i] = matrix[len(index_groups) + j]
+            # First len(non_empty_groups) rows of the matrix are the compressed rows,
+            # and the rest are the not-compressed rows.
+            # Here restore the j-th not-compressed row.
+            row_expanded[i] = matrix[len(non_empty_groups) + j]
             j += 1
         else:
-            for k, group in enumerate(index_groups):
+            for k, group in enumerate(non_empty_groups):
                 if i in group:
                     row_expanded[i] = matrix[k]
                     break
@@ -204,13 +279,22 @@ def expand_matrix(matrix: np.ndarray, index_groups: list[list[int]], DEBUG: bool
     j = 0
     for i in range(expanded_matrix_dimension):
         if i not in all_indexes:
-            expanded[:,i] = row_expanded[:,len(index_groups) + j]
+            # First len(non_empty_groups) columns of the matrix are the compressed columns,
+            # and the rest are the not-compressed columns.
+            # Here restore the j-th not-compressed column.
+            expanded[:,i] = row_expanded[:,len(non_empty_groups) + j]
             j += 1
         else:
-            for k, group in enumerate(index_groups):
+            for k, group in enumerate(non_empty_groups):
                 if i in group:
                     expanded[:,i] = row_expanded[:,k]/len(group)
                     break
+
+
+    # Ensure that the matrix is stochastic
+    expanded[expanded < 0] = 0
+
+    expanded /= np.sum(expanded, axis=1, keepdims=True)
 
     return expanded
 

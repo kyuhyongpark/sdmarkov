@@ -83,8 +83,8 @@ def get_transition_matrix(stg: nx.DiGraph, DEBUG: bool = False) -> np.ndarray:
     if DEBUG:
         check_stg(stg)
 
-    # Initialize the transition matrix
-    transition_matrix = np.zeros((2**N,2**N))
+    # Initialize the transition matrix, with datatype float64
+    transition_matrix = np.zeros((2**N,2**N), dtype=np.float64)
 
     states = sorted(list(stg.nodes()))
 
@@ -102,6 +102,11 @@ def get_transition_matrix(stg: nx.DiGraph, DEBUG: bool = False) -> np.ndarray:
             transition_matrix[index][out_index] = 1/N
 
         transition_matrix[index][index] = 1 - np.sum(transition_matrix[index])
+
+    # Ensure the transition matrix is a valid probability matrix
+    transition_matrix[transition_matrix < 0] = 0
+
+    transition_matrix = transition_matrix / np.sum(transition_matrix, axis=1, keepdims=True)
 
     if DEBUG:
         # Check if the transition matrix is a valid probability matrix
