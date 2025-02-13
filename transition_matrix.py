@@ -50,7 +50,7 @@ def check_stg(stg: nx.DiGraph) -> None:
         if stg.out_degree(state) > N:
             raise ValueError("The number of outgoing transitions for each state must be less than or equal to N.")
 
-def get_transition_matrix(stg: nx.DiGraph, DEBUG: bool = False) -> np.ndarray:
+def get_transition_matrix(stg: nx.DiGraph, update: str = "asynchronous", DEBUG: bool = False) -> np.ndarray:
     """
     Construct a transition matrix from a state transition graph.
 
@@ -98,8 +98,11 @@ def get_transition_matrix(stg: nx.DiGraph, DEBUG: bool = False) -> np.ndarray:
 
             if out_index == index:
                 continue
-
-            transition_matrix[index][out_index] = 1/N
+            
+            if update == "asynchronous":
+                transition_matrix[index][out_index] = 1/N
+            elif update == "synchronous":
+                transition_matrix[index][out_index] = 1
 
         transition_matrix[index][index] = 1 - np.sum(transition_matrix[index])
 

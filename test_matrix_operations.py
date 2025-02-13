@@ -7,6 +7,7 @@ from matrix_operations import compress_matrix
 from matrix_operations import expand_matrix
 from matrix_operations import get_rms_diff
 from matrix_operations import get_dkl
+from matrix_operations import get_reachability
 
 class TestReorderMatrix(unittest.TestCase):
     def test_reorder_matrix_3x3_valid(self):
@@ -81,8 +82,8 @@ class TestCompressMatrix(unittest.TestCase):
 
     def test_empty_index_group(self):
         matrix = np.array([[1, 0, 0], [0, 1/2, 1/2], [0, 0, 1]])
-        index_groups = [[0, 1], []]
-        expected_result = np.array([[3/4, 1/4], [0, 1]])
+        index_groups = [[2], [], [0, 1]]
+        expected_result = np.array([[1, 0], [1/4, 3/4]])
         self.assertTrue(np.allclose(compress_matrix(matrix, index_groups), expected_result))
 
     def test_no_compression(self):
@@ -310,6 +311,55 @@ class TestGetDKL(unittest.TestCase):
         with self.assertRaises(ValueError):
             get_dkl(A, B, DEBUG=True)
 
+
+class TestGetReachability(unittest.TestCase):
+    def test_identical_matrices(self):
+        answer = np.array([[1, 0, 1], [0, 1, 0]])
+        guess = np.array([[1, 0, 1], [0, 1, 0]])
+        TP, FP, TN, FN = get_reachability(answer, guess)
+        self.assertEqual(TP, 3)
+        self.assertEqual(FP, 0)
+        self.assertEqual(TN, 3)
+        self.assertEqual(FN, 0)
+    def test_guess_all_zeros(self):
+        answer = np.array([[1, 0, 1], [0, 1, 0]])
+        guess = np.array([[0, 0, 0], [0, 0, 0]])
+        TP, FP, TN, FN = get_reachability(answer, guess)
+        self.assertEqual(TP, 0)
+        self.assertEqual(FP, 0)
+        self.assertEqual(TN, 3)
+        self.assertEqual(FN, 3)
+    def test_answer_all_zeros(self):
+        answer = np.array([[0, 0, 0], [0, 0, 0]])
+        guess = np.array([[1, 0, 1], [0, 1, 0]])
+        TP, FP, TN, FN = get_reachability(answer, guess)
+        self.assertEqual(TP, 0)
+        self.assertEqual(FP, 3)
+        self.assertEqual(TN, 3)
+        self.assertEqual(FN, 0)
+    def test_guess_all_ones_answer_all_zeros(self):
+        answer = np.array([[0, 0, 0], [0, 0, 0]])
+        guess = np.array([[1, 1, 1], [1, 1, 1]])
+        TP, FP, TN, FN = get_reachability(answer, guess)
+        self.assertEqual(TP, 0)
+        self.assertEqual(FP, 6)
+        self.assertEqual(TN, 0)
+        self.assertEqual(FN, 0)
+    def test_guess_all_ones_answer_all_ones(self):
+        answer = np.array([[1, 1, 1], [1, 1, 1]])
+        guess = np.array([[1, 1, 1], [1, 1, 1]])
+        TP, FP, TN, FN = get_reachability(answer, guess)
+        self.assertEqual(TP, 6)
+        self.assertEqual(FP, 0)
+        self.assertEqual(TN, 0)
+        self.assertEqual(FN, 0)
+    def test_random_matrices(self):
+        np.random.seed(0)
+        answer = np.random.randint(0, 2, size=(10, 10))
+        guess = np.random.randint(0, 2, size=(10, 10))
+        TP, FP, TN, FN = get_reachability(answer, guess)
+        # Check that the sum of TP, FP, TN, and FN is equal to the total number of elements
+        self.assertEqual(TP + FP + TN + FN, 100)
 
 if __name__ == '__main__':
     unittest.main()

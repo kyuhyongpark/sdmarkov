@@ -191,6 +191,21 @@ def compress_matrix(
 
     merged /= np.sum(merged, axis=1, keepdims=True)
 
+    if DEBUG:
+        # get the number of non-empty index groups
+        non_empty_groups = [group for group in index_groups if group]
+
+        # Check that the result is a matrix of dimension length(non_empty_groups) x length(non_empty_groups)
+        assert merged.shape == (len(non_empty_groups), len(non_empty_groups)), f"The result {merged} is not a matrix of dimension {len(non_empty_groups)} x {len(non_empty_groups)}."
+
+        # Check that the elements of the array are between 0 and 1
+        if not np.all(merged >= 0) or not np.all(merged <= 1):
+            raise ValueError("All elements of the matrix must be between 0 and 1. Max: {}, Min: {}".format(np.max(merged), np.min(merged)))
+        
+        # Check that every row of the matrix sums to 1
+        if not np.allclose(np.sum(merged, axis=1), np.ones(merged.shape[1])):
+            raise ValueError("Every row of the matrix must sum to 1.")
+
     return merged
 
 
@@ -339,8 +354,8 @@ def get_rms_diff(A: np.ndarray, B: np.ndarray, DEBUG: bool = False) -> float:
             raise ValueError("Every row of the matrix must sum to 1.")
 
     # Convert A and B to floats
-    A = A.astype(float)
-    B = B.astype(float)
+    A = A.astype(np.float64)
+    B = B.astype(np.float64)
 
     # Calculate the squared difference
     diff_squared = (A - B)**2
@@ -394,8 +409,8 @@ def get_dkl(A: np.ndarray, B: np.ndarray, DEBUG: bool = False) -> float:
             raise ValueError("Every row of the matrix must sum to 1.")
 
     # Convert A and B to floats
-    A = A.astype(float)
-    B = B.astype(float)
+    A = A.astype(np.float64)
+    B = B.astype(np.float64)
 
     # Calculate the ratio
     ratio = np.divide(A,B, out=np.zeros_like(A, dtype=float), where=A!=0.0)
@@ -403,7 +418,52 @@ def get_dkl(A: np.ndarray, B: np.ndarray, DEBUG: bool = False) -> float:
     # Calculate the lost information
     lost_information = A * np.log(ratio, out=np.zeros_like(A, dtype=float), where=ratio!=0.0)
     
-    # Calculate the total lost information
-    total_lost = np.sum(lost_information)
+    # Calculate the Kullback-Leibler divergence by summing over each row
+    dkl = np.sum(lost_information, axis=1)
 
-    return total_lost
+    # Each value in dkl should be non-negative
+    dkl = np.maximum(dkl, 0.0)
+
+    # Calculate the total KL divergence
+    total_dkl = np.sum(dkl)
+
+    return total_dkl
+
+
+def get_reachability(answer, guess):
+    """
+    Calculate the true positives, false positives, true negatives, and false negatives
+    between two matrices, `answer` and `guess`.
+
+    Parameters
+    ----------
+    answer : np.ndarray
+        The ground truth matrix.
+    guess : np.ndarray
+        The predicted matrix.
+
+    Returns
+    -------
+    tuple
+        A tuple containing four integers: (TP, FP, TN, FN)
+        - TP: Number of true positives
+        - FP: Number of false positives
+        - TN: Number of true negatives
+        - FN: Number of false negatives
+
+    Notes
+    -----
+    - A true positive is counted when a corresponding element in both matrices is non-zero.
+    - A false positive is counted when an element in `guess` is non-zero and the corresponding element in `answer` is zero.
+    - A true negative is counted when both corresponding elements in `answer` and `guess` are zero.
+    - A false negative is counted when an element in `answer` is non-zero and the corresponding element in `guess` is zero.
+    """
+    # TODO: Do so for different blocks
+
+    # Define the conditions for each category
+    TP = np.sum((answer != 0) & (guess != 0))  # True positives
+    FP = np.sum((answer == 0) & (guess != 0))  # False positives
+    TN = np.sum((answer == 0) & (guess == 0))  # True negatives
+    FN = np.sum((answer != 0) & (guess == 0))  # False negatives
+
+    return TP, FP, TN, FN

@@ -2,13 +2,16 @@ from itertools import product
 
 import biobalm
 
-def get_sd_nodes(bnet: str, minimal: bool = False, DEBUG: bool = False) -> tuple[list[str], list[dict[str, int]]]:
+def get_sd_nodes_and_edges(
+    bnet: str, minimal: bool = False, DEBUG: bool = False
+) -> tuple[list[str], list[dict[str, int]], list[list[dict[str, int]]]]:
     """
     Given a Boolean network as a string in bnet format, returns a tuple containing
-    a list of node names and a list of dictionaries, where each dictionary corresponds
-    to the state of a node in the succession diagram. The keys in the dictionary are
-    the node names, and the values are the node states (0 or 1). The dictionaries are
-    sorted by key (node name).
+    a list of node names, a list of dictionaries, where each dictionary corresponds
+    to the state of a node or an edge in the succession diagram, and a list of lists
+    of dictionaries, where each sublist corresponds to the outgoing edges of a node
+    in the succession diagram. The keys in the dictionary are the node names, and the
+    values are the node states (0 or 1). The dictionaries are sorted by key (node name).
 
     Parameters
     ----------
@@ -22,34 +25,62 @@ def get_sd_nodes(bnet: str, minimal: bool = False, DEBUG: bool = False) -> tuple
         
     Returns
     -------
-    tuple[list[str], list[dict[str, int]]]
-        A tuple containing a list of node names and a list of dictionaries, where
-        each dictionary corresponds to the state of a node in the succession diagram
-        of the network.
+    tuple[list[str], list[dict[str, int]], list[list[dict[str, int]]]]
+        A tuple containing a list of node names, a list of dictionaries, where
+        each dictionary corresponds to the state of a node or an edge in the
+        succession diagram, and a list of lists of dictionaries, where each sublist
+        corresponds to the outgoing edges of a node in the succession diagram.
 
-    Examples
-    --------
-    >>> get_sd_nodes("A, A | B & C \n B, B & !C \n C, B & !C | !C & !D | !B & C & D \n D, !A & !B & !C & !D | !A & C & D")
-    (['A', 'B', 'C', 'D'], [{}, {'B': 0}, {'A': 0, 'B': 0}, {'A': 0, 'B': 0, 'C': 1, 'D': 1}, {'A': 1, 'D': 0}, {'A': 1, 'B': 0, 'D': 0}])
-    """
+   """
     sd = biobalm.SuccessionDiagram.from_rules(bnet)
-    sd.build()
+    sd.expand_bfs()
 
     nodes = sorted(
         [sd.network.get_variable_name(v) for v in sd.network.variables()]
     )
 
     sd_nodes = []
+    sd_edges = []
+    all_groups = []
 
     for node in sd.node_ids():
         if minimal and not sd.node_is_minimal(node):
             continue
         sd_node = {k: v for k, v in sorted(sd.node_data(node)["space"].items())}
+        
+        # sd_nodes are intrinsically unique
         sd_nodes.append(sd_node)
+        all_groups.append(sd_node)
 
+    for node in sd.node_ids():
+        if minimal:
+            break
+
+        # get the outgoing edges of the sd node
+        for child in sd.node_successors(node, compute=True):
+            edge_motifs = sd.edge_all_stable_motifs(node, child, reduced=False)
+            sd_edge = []
+            for motif in edge_motifs:
+                sd_motif = {k: v for k, v in sorted(motif.items())}
+
+                # avoid adding duplicates
+                if sd_motif not in all_groups:
+                    sd_edge.append(sd_motif)
+                    all_groups.append(sd_motif)
+
+            # only add non-empty edge
+            if sd_edge:
+                sd_edges.append(sort_sd_nodes(nodes, sd_edge, DEBUG=DEBUG))
+
+    # sort the sd nodes
     sd_nodes = sort_sd_nodes(nodes, sd_nodes, DEBUG=DEBUG)
 
-    return nodes, sd_nodes
+    # sort the sd edges
+    first_edges = [sd_edge[0] for sd_edge in sd_edges]
+    sorted_edges = sort_sd_nodes(nodes, first_edges, DEBUG=DEBUG)
+    sd_edges = sorted(sd_edges, key=lambda x: sorted_edges.index(x[0]))
+
+    return nodes, sd_nodes, sd_edges
 
 def sort_sd_nodes(
     nodes: list[str],
@@ -93,6 +124,10 @@ def sort_sd_nodes(
             for key in sd_node.keys():
                 if key not in nodes:
                     raise ValueError(f"Key {key} is not in nodes")
+
+        # Check if there are any duplicates in the sd nodes
+        if len(sd_nodes) != len({frozenset(d.items()) for d in sd_nodes}):
+            raise ValueError("There are duplicates in the sd nodes.")
 
     # Custom sorting key function
     def custom_sort_key(d, keys):
@@ -277,102 +312,163 @@ def get_binary_states(
     # Generate all binary states that agree with node_values
     return generate_states(nodes, node_values, valid_exclude_values, DEBUG=DEBUG)
 
-def get_SD_node_states(
+def get_sd_group_states(
     nodes: list[str],
-    SD_nodes: list[dict[str, int]],
+    sd_nodes: list[dict[str, int]],
+    sd_edges: list[list[dict[str, int]]],
+    extra_groups: list[dict[str, int]] = [],
     DEBUG: bool = False
-) -> list[list[str]]:
+) -> tuple[bool, list[list[str]], dict[str, list[list[str]]]]:
     """
     Retrieve binary states corresponding to each succession diagram (SD) node.
 
     This function iterates over a list of SD nodes and generates binary states 
-    for each SD node based on the list of provided node names.
+    for each SD node based on the list of provided node names. It also ensures 
+    that each SD node and edge has a unique set of binary states.
 
     Parameters
     ----------
     nodes: list[str]
         A list of node names.
-    SD_nodes: list[dict[str, int]]
+    sd_nodes: list[dict[str, int]]
         A list of dictionaries where each dictionary represents the state of a node 
         in the succession diagram. The keys are node names, and the values are the node states (0 or 1).
+    sd_edges: list[list[dict[str, int]]]
+        A list of lists where each sublist represents outgoing edges of a node in the 
+        succession diagram. Each edge is a dictionary similar to sd_nodes.
+    extra_groups: list[dict[str, int]], optional
+        A list of dictionaries where each dictionary represents the state.
+        The keys are node names, and the values are the node states (0 or 1).
+        May be needed to ensure that all states are unique.
     DEBUG: bool, optional
         If set to True, performs additional checks on the input data.
 
     Returns
     -------
-    list[list[str]]
-        A list of lists, where each sublist contains binary state strings corresponding 
-        to each SD node.
+    tuple[bool, list[list[str]], dict[str, list[list[str]]]]
+        A tuple containing:
+        - A boolean indicating whether the total number of states equals 2^N (N being number of nodes).
+        - A list of lists, where each sublist contains binary state strings corresponding 
+          to each SD node and edge.
+        - A dictionary of duplicate states and their corresponding groups, if any.
 
     Notes
     -----
-    It may happen that certain sd nodes do not have a corresponding binary state.
+    It may happen that certain SD nodes do not have a corresponding binary state.
     In that case, the corresponding sublist in the returned list will be empty.
 
-    Examples
-    --------
-    >>> nodes = ['A', 'B', 'C', 'D']
-    >>> SD_nodes = [{}, {'B': 0}, {'A': 0, 'B': 0}, {'A': 0, 'B': 0, 'C': 1, 'D': 1}, {'A': 1, 'D': 0}, {'A': 1, 'B': 0, 'D': 0}]
-    >>> get_SD_node_states(nodes, SD_nodes)
-    [['0100', '0101', '0110', '0111', '1101', '1111'], ['1001', '1011'], ['0000', '0001', '0010'], ['0011'], ['1100', '1110'], ['1000', '1010']]
     """
     
     if DEBUG:
         seen = set()
-        for SD_node in SD_nodes:
+        for sd_node in sd_nodes:
             # check if all keys of SD_node are in nodes
-            for key in SD_node.keys():
+            for key in sd_node.keys():
                 if key not in nodes:
                     raise ValueError(f"Key {key} is not in nodes")
             
             # check if all values of SD_node are 0 or 1
-            for value in SD_node.values():
+            for value in sd_node.values():
                 if value not in [0, 1]:
                     raise ValueError(f"Value {value} is not 0 or 1")
         
             # check if SD_node is unique
-            dict_frozen_set = frozenset(SD_node.items())
+            dict_frozen_set = frozenset(sd_node.items())
             if dict_frozen_set in seen:
-                raise ValueError(f"SD_node {SD_node} is not unique")
+                raise ValueError(f"SD_node {sd_node} is not unique")
             seen.add(dict_frozen_set)
 
         # Check if SD_nodes is not empty
-        if not SD_nodes:
+        if not sd_nodes:
             raise ValueError("SD_nodes is empty")
 
-    SD_node_states = []  # Initialize a list to store states for each SD node
+    sd_group_states = []  # Initialize a list to store states for each group
     
-    for SD_node in SD_nodes:
+    all_subspaces = sd_nodes.copy()
+    for sd_edge in sd_edges:
+        for motif in sd_edge:
+            if motif not in all_subspaces:
+                all_subspaces.append(motif)
+    for extra_group in extra_groups:
+        if extra_group not in all_subspaces:
+            all_subspaces.append(extra_group)
+
+    for sd_node in sd_nodes:
         # Create a list of other SD nodes excluding the current SD node
-        other_SD_nodes = [node for node in SD_nodes if node != SD_node]
+        other_subspaces = all_subspaces.copy()
+        other_subspaces.remove(sd_node)
         
         # Generate binary states for the current SD node
-        states = get_binary_states(nodes, SD_node, other_SD_nodes, DEBUG=DEBUG)
+        states = get_binary_states(nodes, sd_node, other_subspaces, DEBUG=DEBUG)
 
         # Append the generated states to the SD_node_states list
-        SD_node_states.append(states)
+        sd_group_states.append(states)
     
-    if DEBUG:
-        # The number of all states must be equal to 2**N, where N is the number of nodes
-        N = len(nodes)
-        total_states = sum(len(states) for states in SD_node_states)
-        if total_states != 2**N:
-            # print nodes
-            # print("Nodes: ", nodes)
-            # find the duplicate states
-            all_states = [state for states in SD_node_states for state in states]
-            duplicate_states = [state for state in all_states if all_states.count(state) > 1]
-            if duplicate_states:
-                # for state in duplicate_states:
-                    # print(f"Duplicate state: {state}")
-                    # for i, state_group in enumerate(SD_node_states):
-                        # if state in state_group:
-                            # print(f"SD node: {SD_nodes[i]}")
+    for sd_edge in sd_edges:
+        edge_states = []
+        for motif in sd_edge:
+            # Do not add motif if it is already in SD_nodes
+            if motif in sd_nodes:
+                continue
 
-                raise ValueError(f"Duplicate states found: {duplicate_states}")
-            raise ValueError(f"The number of all states {total_states} is not equal to 2**(N={N})")
+            other_subspaces = all_subspaces.copy()
+            other_subspaces.remove(motif)
+            states = get_binary_states(nodes, motif, other_subspaces, DEBUG=DEBUG)
+            for state in states:
+                if state not in edge_states:
+                    edge_states.append(state)
 
-    return SD_node_states  # Return the list of states for each SD node
+        sd_group_states.append(sorted(edge_states))
+    
+    for extra_group in extra_groups:
+        other_subspaces = all_subspaces.copy()
+        other_subspaces.remove(extra_group)
+        states = get_binary_states(nodes, extra_group, other_subspaces, DEBUG=DEBUG)
+        sd_group_states.append(states)
+
+    # The number of all states must be equal to 2**N, where N is the number of nodes
+    N = len(nodes)
+    total_states = sum(len(states) for states in sd_group_states)
+    if total_states != 2**N:
+
+        # find the duplicate states
+        all_states = [state for states in sd_group_states for state in states]
+
+        duplicate_states = []
+        for state in all_states:
+            if all_states.count(state) > 1 and state not in duplicate_states:
+                duplicate_states.append(state)
+
+        if duplicate_states:
+            if DEBUG:
+                print(f"{sd_nodes=}")
+                print(f"{sd_edges=}")
+
+            duplicate_dict = {}
+
+            for state in duplicate_states:
+                duplicate_dict[state] = []
+                if DEBUG:
+                    print(f"Duplicate state: {state}")
+                for i, state_group in enumerate(sd_group_states):
+                    if state in state_group:
+
+                        if i in range(len(sd_nodes)):
+                            duplicate_dict[state].append(sd_nodes[i])
+                            if DEBUG:
+                                print(f"SD node: {sd_nodes[i]}")
+                        elif i in range(len(sd_nodes), len(sd_nodes) + len(sd_edges)):
+                            duplicate_dict[state].append(sd_edges[i - len(sd_nodes)])
+                            if DEBUG:
+                                print(f"SD edge: {sd_edges[i - len(sd_nodes)]}")
+                        else:
+                            duplicate_dict[state].append(extra_groups[i - len(sd_nodes) - len(sd_edges)])
+                            if DEBUG:
+                                print(f"Extra group: {extra_groups[i - len(sd_nodes) - len(sd_edges)]}")
+
+            return False, sd_group_states, duplicate_dict
+    
+    return True, sd_group_states, {}
 
 
 def states_to_indexes(state_groups: list[list[str]], DEBUG: bool = False) -> list[list[int]]:

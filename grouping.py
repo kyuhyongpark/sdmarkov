@@ -3,7 +3,7 @@ import random
 from collections import Counter
 import matplotlib.pyplot as plt
 
-from succession_diagram import get_sd_nodes, get_SD_node_states, states_to_indexes
+from succession_diagram import get_sd_nodes_and_edges, get_sd_group_states, states_to_indexes
 
 
 def sd_grouping(bnet: str, DEBUG: bool = False) -> list[list[int]]:
@@ -26,32 +26,50 @@ def sd_grouping(bnet: str, DEBUG: bool = False) -> list[list[int]]:
     Examples
     --------
     >>> sd_grouping("A, A | B & C\nB, B & !C\nC, B & !C | !C & !D | !B & C & D\nD, !A & !B & !C & !D | !A & C & D")
-    [[4, 5, 6, 7, 13, 15], [9, 11], [0, 1, 2], [3], [12, 14], [8, 10]]
+    [[4, 5, 6, 7], [], [0, 1, 2], [3], [12, 14], [8, 10], [13, 15], [9, 11]]
     """
-    nodes, sd_nodes = get_sd_nodes(bnet)
+    nodes, sd_nodes, sd_edges = get_sd_nodes_and_edges(bnet)
 
-    # if DEBUG:
-    #     print("nodes:")
-    #     for node in nodes:
-    #         print(node)
+    success, sd_group_states, duplicates = get_sd_group_states(nodes, sd_nodes, sd_edges, DEBUG=DEBUG)
 
-    #     print("sd_nodes:")
-    #     for node in sd_nodes:
-    #         print(node)
+    if DEBUG:
+        if duplicates:
+            print(f"{duplicates=}")
+    
+    extra_groups = []
+    n_trys = 0
+    while not success and n_trys < 100:
+        n_trys += 1
+        
+        for state in duplicates:
+            extra_group = {}
+            for node_or_edge in duplicates[state]:
+                if isinstance(node_or_edge, dict): # node or extra group
+                    extra_group.update(node_or_edge)
+                else: # edge
+                    for motif in node_or_edge:
+                        # Check whether the state agrees with the motif
+                        agree = True
+                        for i, node in enumerate(nodes):
+                            if node not in motif:
+                                continue
+                            if int(state[i]) != motif[node]:
+                                agree = False
+                                break
+                        if agree:
+                            extra_group.update(motif)
+            extra_group = dict(sorted(extra_group.items(), key=lambda x: x[0]))
 
-    sd_node_states = get_SD_node_states(nodes, sd_nodes, DEBUG=DEBUG)
+            if extra_group not in extra_groups:
+                extra_groups.append(extra_group)
 
-    # if DEBUG:
-    #     print("sd_node_states:")
-    #     for state in sd_node_states:
-    #         print(state)
+        success, sd_group_states, duplicates = get_sd_group_states(nodes, sd_nodes, sd_edges, extra_groups, DEBUG=DEBUG)
 
-    indexes = states_to_indexes(sd_node_states, DEBUG=DEBUG)
+    if DEBUG:
+        if extra_groups:
+            print(f"{extra_groups=}")
 
-    # if DEBUG:
-    #     print("sd_node indexes:")
-    #     for index in indexes:
-    #         print(index)
+    indexes = states_to_indexes(sd_group_states, DEBUG=DEBUG)
 
     return indexes
 
@@ -78,13 +96,13 @@ def null_grouping(bnet: str, DEBUG: bool = False) -> list[list[int]]:
     >>> null_grouping("A, A | B & C\nB, B & !C\nC, B & !C | !C & !D | !B & C & D\nD, !A & !B & !C & !D | !A & C & D")
     [[0, 1, 2, 4, 5, 6, 7, 9, 11, 12, 13, 14, 15], [3], [8, 10]]
     """
-    nodes, min_trap_nodes = get_sd_nodes(bnet, minimal=True)
+    nodes, min_trap_nodes, _ = get_sd_nodes_and_edges(bnet, minimal=True)
 
     # Make sure to add the group for all transient states
     if {} not in min_trap_nodes:
         min_trap_nodes.insert(0, {})
 
-    min_trap_states = get_SD_node_states(nodes, min_trap_nodes, DEBUG=DEBUG)
+    success, min_trap_states, duplicates = get_sd_group_states(nodes, min_trap_nodes, sd_edges=_, DEBUG=DEBUG)
 
     indexes = states_to_indexes(min_trap_states, DEBUG=DEBUG)
 
@@ -146,8 +164,16 @@ def random_grouping(
     # Get the indexes of the transient states from the null_indexes
     transient_indexes = null_indexes[0]
 
+    # if transient_indexes is empty, return null_indexes
+    if not transient_indexes:
+        return null_indexes
+
+    # Get the number of non-empty groups in sd_indexes and null_indexes
+    non_empty_sd_indexes = len([index_group for index_group in sd_indexes if index_group])
+    non_empty_null_indexes = len([index_group for index_group in null_indexes if index_group])
+
     # Get the number of groups
-    num_groups = len(sd_indexes) - len(null_indexes) + 1
+    num_groups = non_empty_sd_indexes - non_empty_null_indexes + 1
 
     # Divide the transient states into num_groups
     indexes = divide_list_into_sublists(transient_indexes, num_groups, smallest_group_size, seed=seed)
