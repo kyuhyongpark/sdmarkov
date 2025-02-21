@@ -5,10 +5,9 @@ import networkx as nx
 from pyboolnet.state_transition_graphs import primes2stg
 from pyboolnet.external.bnet2primes import bnet_text2primes
 
-from transition_matrix import check_stg
-from transition_matrix import get_transition_matrix
-from transition_matrix import get_hamming_distance_matrix
-from transition_matrix import get_bitflip_matrix
+from transition_matrix import check_stg, check_transition_matrix
+from transition_matrix import get_transition_matrix, get_hamming_distance_matrix, get_bitflip_matrix
+from transition_matrix import get_stg
 
 
 class TestCheckSTG(unittest.TestCase):
@@ -65,6 +64,41 @@ class TestCheckSTG(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             check_stg(stg)
+
+
+class TestCheckTransitionMatrix(unittest.TestCase):
+
+    def test_square_matrix(self):
+        transition_matrix = np.array([[0.5, 0.5], [0.5, 0.5]])
+        check_transition_matrix(transition_matrix)
+
+    def test_non_square_matrix(self):
+        transition_matrix = np.array([[0.5, 0.5], [0.5, 0.5], [0.5, 0.5]])
+        with self.assertRaises(ValueError):
+            check_transition_matrix(transition_matrix)
+
+    def test_elements_outside_range(self):
+        transition_matrix = np.array([[0.5, 1.5], [0.5, 0.5]])
+        with self.assertRaises(ValueError):
+            check_transition_matrix(transition_matrix)
+
+    def test_row_does_not_sum_to_1(self):
+        transition_matrix = np.array([[0.5, 0.4], [0.5, 0.5]])
+        with self.assertRaises(ValueError):
+            check_transition_matrix(transition_matrix)
+
+    def test_compressed_matrix_with_2N_dimensions(self):
+        transition_matrix = np.array([[0.5, 0.5], [0.5, 0.5]])
+        check_transition_matrix(transition_matrix, compressed=True)
+
+    def test_compressed_matrix_without_2N_dimensions(self):
+        transition_matrix = np.array([[0.5, 0.5, 0], [0.5, 0.5, 0], [0.5, 0.5, 0]])
+        check_transition_matrix(transition_matrix, compressed=True)
+
+    def test_non_compressed_matrix_without_2N_dimensions(self):
+        transition_matrix = np.array([[0.5, 0.5, 0], [0.5, 0.5, 0], [0.5, 0.5, 0]])
+        with self.assertRaises(ValueError):
+            check_transition_matrix(transition_matrix)
 
 
 class TestGetTransitionMatrix(unittest.TestCase):
@@ -132,7 +166,7 @@ class TestGetTransitionMatrix(unittest.TestCase):
                B, B & !C
                C, B & !C | !C & !D | !B & C & D
                D, !A & !B & !C & !D | !A & C & D
-               """    
+               """
         primes = bnet_text2primes(bnet)
         update = "asynchronous"
         stg = primes2stg(primes, update)
@@ -277,6 +311,97 @@ class TestGetBitflipMatrix(unittest.TestCase):
              [0, 1, 0, 0],
              [1, 0, 0, 0]])
         self.assertTrue(np.allclose(get_bitflip_matrix(hd, size), expected))
+
+
+class TestGetSTG(unittest.TestCase):
+    def test_empty_transition_matrix(self):
+        transition_matrix = np.array([])
+        stg = get_stg(transition_matrix)
+        self.assertIsInstance(stg, nx.DiGraph)
+        self.assertEqual(len(stg.nodes), 0)
+
+    def test_non_square_transition_matrix(self):
+        transition_matrix = np.array([[0, 1], [1, 0], [0, 1]])
+        with self.assertRaises(ValueError):
+            get_stg(transition_matrix, DEBUG=True)
+
+    def test_transition_matrix_with_elements_outside_01(self):
+        transition_matrix = np.array([[0, 2], [1, 0]])
+        with self.assertRaises(ValueError):
+            get_stg(transition_matrix, DEBUG=True)
+
+    def test_transition_matrix_with_rows_not_summing_to_1(self):
+        transition_matrix = np.array([[0, 2], [1, 0]])
+        with self.assertRaises(ValueError):
+            get_stg(transition_matrix, DEBUG=True)
+
+    def test_valid_transition_matrix_with_multiple_states(self):
+        transition_matrix = np.array([[0.5, 0.5], [0.3, 0.7]])
+        stg = get_stg(transition_matrix)
+        self.assertIsInstance(stg, nx.DiGraph)
+        self.assertEqual(len(stg.nodes), 2)
+        self.assertEqual(len(stg.edges), 2)
+
+    def test_valid_transition_matrix_with_single_state(self):
+        transition_matrix = np.array([[1]])
+        stg = get_stg(transition_matrix)
+        self.assertIsInstance(stg, nx.DiGraph)
+        self.assertEqual(len(stg.nodes), 1)
+        self.assertEqual(len(stg.edges), 1)
+
+    def test_tm2stg2tm(self):
+        transition_matrix =np.array(
+            [[1/2, 1/4, 1/4, 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,  ],
+             [1/4, 3/4, 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,  ],
+             [1/4, 0,   3/4, 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,  ],
+             [0,   0,   0,   1,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,  ],
+             [0,   0,   0,   0,   3/4, 0,   1/4, 0,   0,   0,   0,   0,   0,   0,   0,   0,  ],
+             [0,   0,   0,   0,   1/4, 1/2, 0,   1/4, 0,   0,   0,   0,   0,   0,   0,   0,  ],
+             [0,   0,   1/4, 0,   1/4, 0,   1/4, 0,   0,   0,   0,   0,   0,   0,   1/4, 0,  ],
+             [0,   0,   0,   1/4, 0,   1/4, 0,   1/4, 0,   0,   0,   0,   0,   0,   0,   1/4 ],
+             [0,   0,   0,   0,   0,   0,   0,   0,   3/4, 0,   1/4, 0,   0,   0,   0,   0,  ],
+             [0,   0,   0,   0,   0,   0,   0,   0,   1/4, 3/4, 0,   0,   0,   0,   0,   0,  ],
+             [0,   0,   0,   0,   0,   0,   0,   0,   1/4, 0,   3/4, 0,   0,   0,   0,   0,  ],
+             [0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   1/4, 3/4, 0,   0,   0,   0,  ],
+             [0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   3/4, 0,   1/4, 0,  ],
+             [0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   1/4, 1/2, 0,   1/4 ],
+             [0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   1/4, 0,   1/4, 0,   1/2, 0,  ],
+             [0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   1/4, 0,   1/4, 1/4, 1/4 ]])
+
+        stg = get_stg(transition_matrix, DEBUG=True)
+        transition_matrix2 = get_transition_matrix(stg, DEBUG=True)
+        self.assertTrue(np.array_equal(transition_matrix, transition_matrix2))
+
+    def test_bnet2stg2tm2stg2tm(self):
+        bnet = """
+               targets, factors
+               A, A | B & C
+               B, B & !C
+               C, B & !C | !C & !D | !B & C & D
+               D, !A & !B & !C & !D | !A & C & D
+               """
+        primes = bnet_text2primes(bnet)
+        update = "asynchronous"
+        stg = primes2stg(primes, update)
+
+        transition_matrix = get_transition_matrix(stg, DEBUG=True)
+        stg2 = get_stg(transition_matrix, DEBUG=True)
+        transition_matrix2 = get_transition_matrix(stg2, DEBUG=True)
+
+        self.assertTrue(np.array_equal(transition_matrix, transition_matrix2))
+        # check if all nodes in stg are in stg2
+        for node in stg.nodes:
+            self.assertTrue(node in stg2.nodes)
+        # check if all nodes in stg2 are in stg
+        for node in stg2.nodes:
+            self.assertTrue(node in stg.nodes)
+
+        # check if all edges in stg are in stg2
+        for edge in stg.edges:
+            self.assertTrue(edge in stg2.edges)
+        # check if all edges in stg2 are in stg
+        for edge in stg2.edges:
+            self.assertTrue(edge in stg.edges)
 
 
 if __name__ == '__main__':
