@@ -197,13 +197,13 @@ class TestGetTransitionMatrix(unittest.TestCase):
 class TestGetHammingDistanceMatrix(unittest.TestCase):
     def test_empty_stg(self):
         stg = nx.DiGraph()
-        result = get_hamming_distance_matrix(stg)
+        result = get_hamming_distance_matrix(stg=stg)
         self.assertIsNone(result)
 
     def test_multiple_states_stg(self):
         stg = nx.DiGraph()
         stg.add_nodes_from(['00', '01', '10', '11'])
-        result = get_hamming_distance_matrix(stg)
+        result = get_hamming_distance_matrix(stg=stg)
         expected = np.array([[0, 1, 1, 2], [1, 0, 2, 1], [1, 2, 0, 1], [2, 1, 1, 0]])
         self.assertTrue(np.allclose(result, expected))
 
@@ -237,9 +237,21 @@ class TestGetHammingDistanceMatrix(unittest.TestCase):
              [3, 4, 2, 3, 2, 3, 1, 2, 2, 3, 1, 2, 1, 2, 0, 1,],
              [4, 3, 3, 2, 3, 2, 2, 1, 3, 2, 2, 1, 2, 1, 1, 0,]])
         
-        result = get_hamming_distance_matrix(stg)
+        result = get_hamming_distance_matrix(stg=stg)
         self.assertTrue(np.allclose(result, expected))
 
+    def test_N_specified(self):
+        N = 3
+        expected_matrix = np.array([[0, 1, 1, 2, 1, 2, 2, 3],
+                                    [1, 0, 2, 1, 2, 1, 3, 2],
+                                    [1, 2, 0, 1, 2, 3, 1, 2],
+                                    [2, 1, 1, 0, 3, 2, 2, 1],
+                                    [1, 2, 2, 3, 0, 1, 1, 2],
+                                    [2, 1, 3, 2, 1, 0, 2, 1],
+                                    [2, 3, 1, 2, 1, 2, 0, 1],
+                                    [3, 2, 2, 1, 2, 1, 1, 0]])
+        result_matrix = get_hamming_distance_matrix(N=N)
+        self.assertTrue(np.array_equal(result_matrix, expected_matrix))
 
 class TestGetBitflipMatrix(unittest.TestCase):
     def test_empty_Hamming_distance_matrix(self):

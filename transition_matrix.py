@@ -162,14 +162,16 @@ def get_transition_matrix(stg: nx.DiGraph, update: str = "asynchronous", DEBUG: 
 
     return transition_matrix
 
-def get_hamming_distance_matrix(stg: nx.DiGraph, DEBUG: bool = False) -> np.ndarray:
+def get_hamming_distance_matrix(N: int|None = None, stg: nx.DiGraph|None = None, DEBUG: bool = False) -> np.ndarray:
     """
     Construct a Hamming distance matrix from a state transition graph.
 
     Parameters
     ----------
-    stg : networkx DiGraph
-        The state transition graph.
+    N : int, optional
+        The number of nodes in the Boolean network. If None, it is inferred from stg.
+    stg : networkx DiGraph, optional
+        The state transition graph. If None, N must be specified.
 
     Returns
     -------
@@ -182,40 +184,40 @@ def get_hamming_distance_matrix(stg: nx.DiGraph, DEBUG: bool = False) -> np.ndar
     The Hamming distance between two states is the number of bits that are different between the two states.
     """
 
-    # If the state transition graph is empty, return None
-    if stg.number_of_nodes() == 0:
+    if N == None:
+        if stg == None:
+            raise ValueError("Either N or stg must be specified.")
+        # If the state transition graph is empty, return None
+        if stg.number_of_nodes() == 0:
+            if DEBUG:
+                print("The state transition graph is empty.")
+            return None
+
+        # Perform basic checks if DEBUGGING
         if DEBUG:
-            print("The state transition graph is empty.")
-        return None
+            check_stg(stg)
 
-    # Perform basic checks if DEBUGGING
-    if DEBUG:
-        check_stg(stg)
+        # Get the number of nodes in the Boolean network
+        N = len(list(stg.nodes())[0])
 
-    # Get the list of states in the state transition graph
-    states = sorted(list(stg.nodes()))
+    array_00 = np.zeros((1,1))
+    array_01 = np.ones((1,1))
 
-    # Get the number of nodes in the Boolean network
-    N = len(list(stg.nodes())[0])
+    for i in range(N):
+        array_10 = array_01
+        array_11 = array_00
 
-    # Initialize the Hamming distance matrix
-    hamming_distance_matrix = np.zeros((2**N,2**N))
+        top_half = np.hstack((array_00, array_01))
+        bottom_half = np.hstack((array_10, array_11))
+                
+        # Step 4: Create the result by stacking top and bottom vertically (2n x 2n)
+        array_00 = np.vstack((top_half, bottom_half))
+        array_01 = array_00 + 1
 
-    # Iterate over all pairs of states
-    for state1 in states:
-        # Get the index of state1 in the sorted list of states
-        index1 = states.index(state1)
-
-        for state2 in states:
-            # Get the index of state2 in the sorted list of states
-            index2 = states.index(state2)
-
-            # Calculate the Hamming distance between state1 and state2
-            for i in range(N):
-                if state1[i] != state2[i]:
-                    hamming_distance_matrix[index1][index2] += 1
+    hamming_distance_matrix = array_00
 
     return hamming_distance_matrix
+
 
 def get_bitflip_matrix(hd: np.ndarray, size: int, DEBUG: bool = False) -> np.ndarray:
     """
