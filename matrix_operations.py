@@ -1,5 +1,8 @@
 import numpy as np
 
+from transition_matrix import get_stg, check_transition_matrix, get_hamming_distance_matrix
+from scc_dags import get_scc_dag, get_ordered_states
+
 def reorder_matrix(matrix: np.ndarray, index_list: list[int]) -> np.ndarray:
     """
     Reorders the rows and columns of a matrix according to the given index list.
@@ -39,7 +42,6 @@ def reorder_matrix(matrix: np.ndarray, index_list: list[int]) -> np.ndarray:
 
 
 def nsquare(matrix: np.ndarray, n: int, DEBUG: bool = False) -> np.ndarray:
-
     """
     TODO: For the cases where the matrix will not converge for large n,
     we need options to average the outcome over some value.
@@ -63,28 +65,19 @@ def nsquare(matrix: np.ndarray, n: int, DEBUG: bool = False) -> np.ndarray:
     Raises
     ------
     ValueError
-        If the matrix is not square, or if the elements of the matrix are not between 0 and 1, or if the rows of the matrix do not sum to 1.
+        If the matrix is not square, or if the elements of the matrix are not
+        between 0 and 1, or if the rows of the matrix do not sum to 1.
     """
 
     if DEBUG:
-        # Check that the matrix is square
-        if matrix.shape[0] != matrix.shape[1]:
-            raise ValueError("The matrix must be square.")
+        check_transition_matrix(matrix, compressed=True)
 
-        # Check that the elements of the array are between 0 and 1, with some tolerance
-        if not np.all(matrix >= 0 - 1e-16) or not np.all(matrix <= 1 + 1e-16):
-            raise ValueError("All elements of the matrix must be between 0 and 1. Max: {}, Min: {}".format(np.max(matrix), np.min(matrix)))
-
-        # Check that every row of the matrix sums to 1
-        if not np.allclose(np.sum(matrix, axis=1), np.ones(matrix.shape[1])):
-            raise ValueError("Every row of the matrix must sum to 1.")
-        
         # Make the matrix datatype float64
         matrix = matrix.astype(np.float64)
 
     squared_matrix = matrix
 
-    for i in range(n):
+    for _ in range(n):
         squared_matrix = np.linalg.matrix_power(squared_matrix, 2)
 
         # Set small negative values to zero
@@ -98,7 +91,10 @@ def nsquare(matrix: np.ndarray, n: int, DEBUG: bool = False) -> np.ndarray:
         double_squared_matrix = np.linalg.matrix_power(squared_matrix, 2)
         double_squared_matrix[double_squared_matrix < 0] = 0
         double_squared_matrix /= np.sum(double_squared_matrix, axis=1, keepdims=True)
-        assert np.allclose(squared_matrix, double_squared_matrix), f"The result using n+1 {double_squared_matrix} is not close to the result using n {squared_matrix}."
+        assert np.allclose(squared_matrix, double_squared_matrix), (
+            f"The result using n+1 {double_squared_matrix} is not close to the "
+            f"result using n {squared_matrix}."
+        )
 
     return squared_matrix
 
@@ -143,24 +139,14 @@ def compress_matrix(
     """
 
     if DEBUG:
-        # Check that the matrix is square
-        if matrix.shape[0] != matrix.shape[1]:
-            raise ValueError("The matrix must be square.")
+        check_transition_matrix(matrix)
 
-        # Check that the elements of the array are between 0 and 1
-        if not np.all(matrix >= 0) or not np.all(matrix <= 1):
-            raise ValueError("All elements of the matrix must be between 0 and 1. Max: {}, Min: {}".format(np.max(matrix), np.min(matrix)))
-        
-        # Check that every row of the matrix sums to 1
-        if not np.allclose(np.sum(matrix, axis=1), np.ones(matrix.shape[1])):
-            raise ValueError("Every row of the matrix must sum to 1.")
-        
         # Check that index groups are mutually exclusive
         for i in range(len(index_groups)):
-            for j in range(i+1, len(index_groups)):
+            for j in range(i + 1, len(index_groups)):
                 if set(index_groups[i]).intersection(set(index_groups[j])):
                     raise ValueError("Index groups must be mutually exclusive.")
-        
+
         # Check that index groups are within the bounds of the matrix
         for group in index_groups:
             if any(index < 0 or index >= matrix.shape[0] for index in group):
@@ -183,7 +169,7 @@ def compress_matrix(
     for group in reversed(index_groups):
         if len(group) == 0:
             continue
-        insert_column = np.sum(row_merged[:,group], axis=1)
+        insert_column = np.sum(row_merged[:, group], axis=1)
         merged = np.insert(merged, 0, insert_column, axis=1)
 
     # Ensure that the matrix is stochastic
@@ -196,20 +182,19 @@ def compress_matrix(
         non_empty_groups = [group for group in index_groups if group]
 
         # Check that the result is a matrix of dimension length(non_empty_groups) x length(non_empty_groups)
-        assert merged.shape == (len(non_empty_groups), len(non_empty_groups)), f"The result {merged} is not a matrix of dimension {len(non_empty_groups)} x {len(non_empty_groups)}."
+        assert merged.shape == (
+            len(non_empty_groups),
+            len(non_empty_groups),
+        ), f"The result {merged} is not a matrix of dimension {len(non_empty_groups)} x {len(non_empty_groups)}."
 
-        # Check that the elements of the array are between 0 and 1
-        if not np.all(merged >= 0) or not np.all(merged <= 1):
-            raise ValueError("All elements of the matrix must be between 0 and 1. Max: {}, Min: {}".format(np.max(merged), np.min(merged)))
-        
-        # Check that every row of the matrix sums to 1
-        if not np.allclose(np.sum(merged, axis=1), np.ones(merged.shape[1])):
-            raise ValueError("Every row of the matrix must sum to 1.")
+        check_transition_matrix(merged, compressed=True)
 
     return merged
 
 
-def expand_matrix(matrix: np.ndarray, index_groups: list[list[int]], DEBUG: bool = False) -> np.ndarray:
+def expand_matrix(
+    matrix: np.ndarray, index_groups: list[list[int]], DEBUG: bool = False
+) -> np.ndarray:
     """
     Expand a compressed matrix by splitting certain rows and columns into multiple rows and columns.
 
@@ -221,7 +206,7 @@ def expand_matrix(matrix: np.ndarray, index_groups: list[list[int]], DEBUG: bool
         A list of lists, same as the one used in the compress_matrix function.
     DEBUG : bool, optional
         If True, perform basic checks.
-        
+
     Returns
     -------
     np.ndarray
@@ -239,39 +224,32 @@ def expand_matrix(matrix: np.ndarray, index_groups: list[list[int]], DEBUG: bool
     """
 
     if DEBUG:
-        # Check that the matrix is square
-        if matrix.shape[0] != matrix.shape[1]:
-            raise ValueError("The matrix must be square.")
+        check_transition_matrix(matrix, compressed=True)
 
-        # Check that the elements of the array are between 0 and 1
-        if not np.all(matrix >= 0) or not np.all(matrix <= 1):
-            raise ValueError("All elements of the matrix must be between 0 and 1. Max: {}, Min: {}".format(np.max(matrix), np.min(matrix)))
-        
-        # Check that every row of the matrix sums to 1
-        if not np.allclose(np.sum(matrix, axis=1), np.ones(matrix.shape[1])):
-            raise ValueError("Every row of the matrix must sum to 1.")
-        
         # Check that index groups are mutually exclusive
         for i in range(len(index_groups)):
-            for j in range(i+1, len(index_groups)):
+            for j in range(i + 1, len(index_groups)):
                 if set(index_groups[i]).intersection(set(index_groups[j])):
                     raise ValueError("Index groups must be mutually exclusive.")
-        
+
         # Check that the number of non-empty index groups is not greater than the size of the matrix
         non_empty_groups = [group for group in index_groups if group]
         if len(non_empty_groups) > matrix.shape[0]:
-            raise ValueError("The number of non-empty index groups must be less than or equal to the size of the matrix.")
-        
+            raise ValueError(
+                "The number of non-empty index groups must be less than or equal to the size of the matrix."
+            )
 
     compressed_matrix_dimension = len(matrix)
-    
+
     all_indexes = []
     for group in index_groups:
         all_indexes.extend(group)
 
     non_empty_groups = [group for group in index_groups if group]
 
-    expanded_matrix_dimension = compressed_matrix_dimension - len(non_empty_groups) + len(all_indexes)
+    expanded_matrix_dimension = (
+        compressed_matrix_dimension - len(non_empty_groups) + len(all_indexes)
+    )
 
     row_expanded = np.zeros((expanded_matrix_dimension, compressed_matrix_dimension))
 
@@ -297,18 +275,16 @@ def expand_matrix(matrix: np.ndarray, index_groups: list[list[int]], DEBUG: bool
             # First len(non_empty_groups) columns of the matrix are the compressed columns,
             # and the rest are the not-compressed columns.
             # Here restore the j-th not-compressed column.
-            expanded[:,i] = row_expanded[:,len(non_empty_groups) + j]
+            expanded[:, i] = row_expanded[:, len(non_empty_groups) + j]
             j += 1
         else:
             for k, group in enumerate(non_empty_groups):
                 if i in group:
-                    expanded[:,i] = row_expanded[:,k]/len(group)
+                    expanded[:, i] = row_expanded[:, k] / len(group)
                     break
-
 
     # Ensure that the matrix is stochastic
     expanded[expanded < 0] = 0
-
     expanded /= np.sum(expanded, axis=1, keepdims=True)
 
     return expanded
@@ -345,13 +321,8 @@ def get_rms_diff(A: np.ndarray, B: np.ndarray, DEBUG: bool = False) -> float:
         if A.shape != B.shape:
             raise ValueError("The matrices must have the same shape.")
 
-        # Check that the elements of the array are between 0 and 1
-        if not np.all(A >= 0) or not np.all(A <= 1) or not np.all(B >= 0) or not np.all(B <= 1):
-            raise ValueError("All elements of the matrix must be between 0 and 1.")
-        
-        # Check that every row of the matrix sums to 1
-        if not np.allclose(np.sum(A, axis=1), np.ones(A.shape[1])) or not np.allclose(np.sum(B, axis=1), np.ones(B.shape[1])):
-            raise ValueError("Every row of the matrix must sum to 1.")
+        check_transition_matrix(A, compressed=True)
+        check_transition_matrix(B, compressed=True)
 
     # Convert A and B to floats
     A = A.astype(np.float64)
@@ -400,13 +371,8 @@ def get_dkl(A: np.ndarray, B: np.ndarray, DEBUG: bool = False) -> float:
         if A.shape != B.shape:
             raise ValueError("The matrices must have the same shape.")
 
-        # Check that the elements of the array are between 0 and 1
-        if not np.all(A >= 0) or not np.all(A <= 1) or not np.all(B >= 0) or not np.all(B <= 1):
-            raise ValueError("All elements of the matrix must be between 0 and 1.")
-        
-        # Check that every row of the matrix sums to 1
-        if not np.allclose(np.sum(A, axis=1), np.ones(A.shape[1])) or not np.allclose(np.sum(B, axis=1), np.ones(B.shape[1])):
-            raise ValueError("Every row of the matrix must sum to 1.")
+        check_transition_matrix(A, compressed=True)
+        check_transition_matrix(B, compressed=True)
 
     # Convert A and B to floats
     A = A.astype(np.float64)
@@ -430,7 +396,7 @@ def get_dkl(A: np.ndarray, B: np.ndarray, DEBUG: bool = False) -> float:
     return total_dkl
 
 
-def get_reachability(answer, guess):
+def get_reachability(answer, guess, get_type="all", scc_indices=None, attractor_states=None, DEBUG=False):
     """
     Calculate the true positives, false positives, true negatives, and false negatives
     between two matrices, `answer` and `guess`.
@@ -441,6 +407,14 @@ def get_reachability(answer, guess):
         The ground truth matrix.
     guess : np.ndarray
         The predicted matrix.
+    get_type : str, optional
+        What type of reachability to calculate. Can be 'all', 'attractor', or 'basin'.
+    scc_indices : list[list[int]], optional
+        The indices of the strongly connected components in the transition matrix.
+    attractor_states : list[list[int]], optional
+        The indices of the attractor states in the transition matrix.
+    DEBUG : bool, optional
+        If True, perform basic checks.
 
     Returns
     -------
@@ -453,12 +427,80 @@ def get_reachability(answer, guess):
 
     Notes
     -----
-    - A true positive is counted when a corresponding element in both matrices is non-zero.
-    - A false positive is counted when an element in `guess` is non-zero and the corresponding element in `answer` is zero.
-    - A true negative is counted when both corresponding elements in `answer` and `guess` are zero.
-    - A false negative is counted when an element in `answer` is non-zero and the corresponding element in `guess` is zero.
+    'all' type considers all reachability.
+    'hierarchy' type considers only reachability from transient states, which should not exist in the answer matrix.
+    'attractor' type considers only reachability from attractor states.
+    'basin' type considers only reachability from transient states to attractor states.
     """
-    # TODO: Do so for different blocks
+
+    if get_type not in ["all", "hierarchy", "attractor", "basin"]:
+        raise ValueError("type must be one of 'all', 'hierarchy', 'attractor', or 'basin'.")
+
+    if DEBUG:
+        # Check that the matrices have the same shape
+        if answer.shape != guess.shape:
+            raise ValueError("The matrices must have the same shape.")
+
+        check_transition_matrix(answer)
+        check_transition_matrix(guess)
+
+    if get_type == "hierarchy":
+        if scc_indices is None:
+            raise ValueError("If type is 'hierarchy', scc_indices must be provided.")
+
+        block_answer, _ = get_block_triangular(answer, scc_indices=scc_indices, DEBUG=DEBUG)
+        block_guess, _ = get_block_triangular(guess, scc_indices=scc_indices, DEBUG=DEBUG)
+
+        length_list = [len(scc) for scc in scc_indices]
+
+        answer = []
+        guess = []
+
+        current_index = 0
+        for length in length_list:
+            # Check that the first length columns are zeros from the length+1th row
+            for i in range(current_index + length, block_answer.shape[0]):
+                for j in range(current_index, current_index + length):
+                    answer.append(block_answer[i, j])
+                    guess.append(block_guess[i, j])
+
+            current_index += length
+
+        answer = np.array(answer)
+        guess = np.array(guess)
+
+        if DEBUG:
+            # Check that answer is all zeros
+            if np.any(answer):
+                raise ValueError("The answer matrix must be all zeros.")
+
+    elif get_type == "attractor":
+        if scc_indices is None or attractor_states is None:
+            raise ValueError("If type is 'attractor', scc_indices and attractor_states must be provided.")
+
+        block_answer, _ = get_block_triangular(answer, scc_indices=scc_indices, DEBUG=DEBUG)
+        block_guess, _ = get_block_triangular(guess, scc_indices=scc_indices, DEBUG=DEBUG)
+
+        all_attractor_states = []
+        for attractor_state in attractor_states:
+            all_attractor_states.extend(attractor_state)
+
+        answer = block_answer[-len(all_attractor_states):, :]
+        guess = block_guess[-len(all_attractor_states):, :]
+
+    elif get_type == "basin":
+        if scc_indices is None or attractor_states is None:
+            raise ValueError("If type is 'basin', scc_indices and attractor_states must be provided.")
+
+        block_answer, _ = get_block_triangular(answer, scc_indices=scc_indices, DEBUG=DEBUG)
+        block_guess, _ = get_block_triangular(guess, scc_indices=scc_indices, DEBUG=DEBUG)
+
+        all_attractor_states = []
+        for attractor_state in attractor_states:
+            all_attractor_states.extend(attractor_state)
+
+        answer = block_answer[:-len(all_attractor_states), -len(all_attractor_states):]
+        guess = block_guess[:-len(all_attractor_states), -len(all_attractor_states):]
 
     # Define the conditions for each category
     TP = np.sum((answer != 0) & (guess != 0))  # True positives
@@ -467,3 +509,142 @@ def get_reachability(answer, guess):
     FN = np.sum((answer != 0) & (guess == 0))  # False negatives
 
     return TP, FP, TN, FN
+
+
+def is_block_triangular(transition_matrix: np.ndarray, scc_indices: list[list[int]]) -> bool:
+    """
+    Check if the transition matrix is block triangular according to the given scc indices.
+
+    Parameters
+    ----------
+    transition_matrix : np.ndarray, shape (2^N, 2^N)
+        The transition matrix.
+    scc_indices : list[list[int]]
+        The indices of the strongly connected components in the transition matrix.
+
+    Returns
+    -------
+    bool
+        True if the transition matrix is block triangular according to the scc indices, False otherwise.
+    """
+
+    length_list = [len(scc) for scc in scc_indices]
+
+    current_index = 0
+    for length in length_list:
+        # Check that the first length columns are zeros from the length+1th row
+        for i in range(current_index + length, transition_matrix.shape[0]):
+            for j in range(current_index, current_index + length):
+                if transition_matrix[i, j] != 0:
+                    print(
+                        f"Value at ({i}, {j}) is not zero and should be zero: {transition_matrix[i, j]}"
+                    )
+                    return False
+
+        current_index += length
+
+    return True
+
+
+def get_block_triangular(transition_matrix, scc_indices=None, scc_dag=None, stg=None, DEBUG=False):
+    """
+    Get the block triangular matrix corresponding to the SCC DAG.
+
+    Parameters
+    ----------
+    transition_matrix : numpy array, shape (2^N, 2^N)
+        The transition matrix.
+    scc_indices : list[list[int]], optional
+        The indices of the strongly connected components in the stg.
+        If None, it will be computed from the appropriate input.
+    scc_dag : networkx DiGraph, optional
+        The SCC DAG.
+    stg : networkx DiGraph, optional
+        The state transition graph.
+    DEBUG : bool, optional
+        If True, performs additional checks.
+
+    Returns
+    -------
+    block_triangular : numpy array, shape (2^N, 2^N)
+        The block triangular matrix corresponding to the SCC DAG.
+    scc_indices : list[list[int]]
+        The indices of the strongly connected components in the stg.
+
+    Notes
+    -----
+    Note that the topological order of the scc dag is not unique.
+    Use scc_indices when comparing different block triangular matrices,
+    so that the order of states is consistent.
+    """
+
+    if DEBUG:
+        check_transition_matrix(transition_matrix)
+
+    # Starting from the transition matrix
+    if stg == None and scc_dag == None and scc_indices == None:
+        stg = get_stg(transition_matrix)
+
+    # Starting from the stg
+    if stg != None and scc_dag == None and scc_indices == None:
+        scc_dag = get_scc_dag(stg)
+
+    # Starting from the scc dag
+    if scc_dag != None and scc_indices == None:
+        scc_indices = get_ordered_states(scc_dag, as_indexes=True)
+        if DEBUG:
+            print("Calculated scc_indices", scc_indices)
+
+    # Starting from the scc indices
+    index_list = []
+    for scc in scc_indices:
+        index_list.extend(scc)
+    
+    block_triangular = reorder_matrix(transition_matrix, index_list)
+
+    # if DEBUG:
+    #     # Check that the matrix is block triangular
+    #     if not is_block_triangular(block_triangular, scc_indices):
+    #         print("The matrix is not block triangular.")
+
+    return block_triangular, scc_indices
+
+
+def enforce_asynchronous(transition_matrix, DEBUG=False):
+    """
+    Enforce asynchronous updates in a transition matrix.
+
+    Parameters
+    ----------
+    transition_matrix : numpy array, shape (2^N, 2^N)
+        The transition matrix.
+
+    Returns
+    -------
+    transition_matrix : numpy array, shape (2^N, 2^N)
+        The transition matrix with asynchronous updates enforced.
+
+    Notes
+    -----
+    This function enforces asynchronous updates in a transition matrix by setting all
+    transition probabilities to 0 if the Hamming distance between the two states is
+    higher than 1. The transition matrix is then normalized.
+    """
+
+    if DEBUG:
+        check_transition_matrix(transition_matrix)
+
+    N = int(np.log2(transition_matrix.shape[0]))
+
+    hd = get_hamming_distance_matrix(N, DEBUG=True)
+
+    # for every i,j in the transition matrix, if the hamming distance is higher than 1, set it to 0
+    for i in range(transition_matrix.shape[0]):
+        for j in range(transition_matrix.shape[1]):
+            if hd[i, j] > 1:
+                transition_matrix[i, j] = 0
+
+    # normalize the transition matrix
+    transition_matrix = transition_matrix / np.sum(transition_matrix, axis=1, keepdims=True)
+
+    return transition_matrix
