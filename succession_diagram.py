@@ -440,31 +440,31 @@ def get_sd_group_states(
                 duplicate_states.append(state)
 
         if duplicate_states:
-            if DEBUG:
-                print(f"{sd_nodes=}")
-                print(f"{sd_edges=}")
+            # if DEBUG:
+            #     print(f"{sd_nodes=}")
+            #     print(f"{sd_edges=}")
 
             duplicate_dict = {}
 
             for state in duplicate_states:
                 duplicate_dict[state] = []
-                if DEBUG:
-                    print(f"Duplicate state: {state}")
+                # if DEBUG:
+                #     print(f"Duplicate state: {state}")
                 for i, state_group in enumerate(sd_group_states):
                     if state in state_group:
 
                         if i in range(len(sd_nodes)):
                             duplicate_dict[state].append(sd_nodes[i])
-                            if DEBUG:
-                                print(f"SD node: {sd_nodes[i]}")
+                            # if DEBUG:
+                            #     print(f"SD node: {sd_nodes[i]}")
                         elif i in range(len(sd_nodes), len(sd_nodes) + len(sd_edges)):
                             duplicate_dict[state].append(sd_edges[i - len(sd_nodes)])
-                            if DEBUG:
-                                print(f"SD edge: {sd_edges[i - len(sd_nodes)]}")
+                            # if DEBUG:
+                            #     print(f"SD edge: {sd_edges[i - len(sd_nodes)]}")
                         else:
                             duplicate_dict[state].append(extra_groups[i - len(sd_nodes) - len(sd_edges)])
-                            if DEBUG:
-                                print(f"Extra group: {extra_groups[i - len(sd_nodes) - len(sd_edges)]}")
+                            # if DEBUG:
+                            #     print(f"Extra group: {extra_groups[i - len(sd_nodes) - len(sd_edges)]}")
 
             return False, sd_group_states, duplicate_dict
     
