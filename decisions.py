@@ -126,7 +126,7 @@ def expand_decision_matrix(
     --------
     >>> matrix = np.array([[-1, 1], [0, -1]])
     >>> index_groups = [[0, 1], [2]]
-    >>> expanded_matrix = expand_matrix(matrix, index_groups)
+    >>> expanded_matrix = expand_decision_matrix(matrix, index_groups)
     >>> expanded_matrix
     array([[-1, -1,  1],
            [-1, -1,  1],
