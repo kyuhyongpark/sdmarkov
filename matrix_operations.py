@@ -72,10 +72,7 @@ def nsquare(matrix: np.ndarray, n: int, DEBUG: bool = False) -> np.ndarray:
     if DEBUG:
         check_transition_matrix(matrix, compressed=True)
 
-        # Make the matrix datatype float64
-        matrix = matrix.astype(np.float64)
-
-    squared_matrix = matrix
+    squared_matrix = matrix.astype(np.float64)
 
     for _ in range(n):
         squared_matrix = np.linalg.matrix_power(squared_matrix, 2)

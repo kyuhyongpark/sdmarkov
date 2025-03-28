@@ -8,6 +8,7 @@ from pyboolnet.external.bnet2primes import bnet_text2primes
 from transition_matrix import check_stg, check_transition_matrix
 from transition_matrix import get_transition_matrix, get_hamming_distance_matrix, get_bitflip_matrix
 from transition_matrix import get_stg
+from transition_matrix import get_markov_chain
 
 
 class TestCheckSTG(unittest.TestCase):
@@ -415,6 +416,61 @@ class TestGetSTG(unittest.TestCase):
         for edge in stg2.edges:
             self.assertTrue(edge in stg.edges)
 
+
+class TestGetMarkovChain(unittest.TestCase):
+    def test_empty_compressed_transition_matrix(self):
+        compressed_transition_matrix = np.array([])
+        group_indexes = []
+        result = get_markov_chain(compressed_transition_matrix, group_indexes)
+        self.assertIsInstance(result, nx.DiGraph)
+        self.assertEqual(len(result.nodes), 0)
+        self.assertEqual(len(result.edges), 0)
+
+    def test_non_square_compressed_transition_matrix_debug_true(self):
+        compressed_transition_matrix = np.array([[0.5, 0.5], [0.3, 0.7], [0.1, 0.9]])
+        group_indexes = [[0, 1], [2]]
+        with self.assertRaises(ValueError):
+            get_markov_chain(compressed_transition_matrix, group_indexes, DEBUG=True)
+
+    def test_compressed_transition_matrix_elements_outside_range_debug_true(self):
+        compressed_transition_matrix = np.array([[0.5, 1.5], [0.3, 0.7]])
+        group_indexes = [[0, 1], [2]]
+        with self.assertRaises(ValueError):
+            get_markov_chain(compressed_transition_matrix, group_indexes, DEBUG=True)
+
+    def test_compressed_transition_matrix_rows_not_summing_to_one_debug_true(self):
+        compressed_transition_matrix = np.array([[0.5, 0.4], [0.3, 0.7]])
+        group_indexes = [[0, 1], [2]]
+        with self.assertRaises(ValueError):
+            get_markov_chain(compressed_transition_matrix, group_indexes, DEBUG=True)
+
+    def test_valid_compressed_transition_matrix_with_group_indexes(self):
+        compressed_transition_matrix = np.array([[0.5, 0.5], [0.3, 0.7]])
+        group_indexes = [[0, 1], [2]]
+        result = get_markov_chain(compressed_transition_matrix, group_indexes)
+        self.assertIsInstance(result, nx.DiGraph)
+        self.assertEqual(len(result.nodes), 2)
+        self.assertEqual(len(result.edges), 4)
+
+    def test_valid_compressed_transition_matrix_with_empty_group_indexes(self):
+        compressed_transition_matrix = np.array([[0.5, 0.5], [0.3, 0.7]])
+        group_indexes = []
+        with self.assertRaises(ValueError):
+            get_markov_chain(compressed_transition_matrix, group_indexes, DEBUG=True)
+
+    def test_example(self):
+        compressed_transition_matrix = np.array([[0.75 , 0.062, 0.062, 0.062, 0.   , 0.062, 0.   ],
+                                                 [0.   , 1.   , 0.   , 0.   , 0.   , 0.   , 0.   ],
+                                                 [0.   , 0.   , 1.   , 0.   , 0.   , 0.   , 0.   ],
+                                                 [0.   , 0.   , 0.   , 0.875, 0.125, 0.   , 0.   ],
+                                                 [0.   , 0.   , 0.   , 0.   , 1.   , 0.   , 0.   ],
+                                                 [0.   , 0.   , 0.   , 0.25 , 0.   , 0.625, 0.125],
+                                                 [0.   , 0.   , 0.   , 0.   , 0.25 , 0.   , 0.75 ]])
+        group_indexes = [[4, 5, 6, 7], [], [0, 1, 2], [3], [12, 14], [8, 10], [13, 15], [9, 11]]
+        result = get_markov_chain(compressed_transition_matrix, group_indexes)
+        self.assertIsInstance(result, nx.DiGraph)
+        self.assertEqual(sorted(list(result.nodes)), sorted(['0', '2', '3', '4', '5', '6', '7']))
+        self.assertEqual(sorted(list(result.edges)), sorted([('0', '0'), ('0', '2'), ('0', '3'), ('0', '4'), ('0', '6'), ('2', '2'), ('3', '3'), ('4', '4'), ('4', '5'), ('6', '4'), ('6', '6'), ('6', '7'), ('5', '5'), ('7', '5'), ('7', '7')]))
 
 if __name__ == '__main__':
     unittest.main()

@@ -397,3 +397,59 @@ def get_stg(transition_matrix: np.ndarray, DEBUG: bool = False) -> nx.DiGraph:
                 stg.add_edge(binary_i, binary_j, weight=transition_matrix[i][j])
 
     return stg
+
+
+def get_markov_chain(compressed_transition_matrix: np.ndarray, group_indexes: list, DEBUG: bool = False) -> nx.DiGraph:
+    """
+    Construct a Markov chain from a compressed transition matrix.
+
+    Parameters
+    ----------
+    compressed_transition_matrix : np.ndarray
+        The compressed transition matrix. The entry at row i and column j is the probability of transitioning from group i to group j.
+
+    group_indexes : list
+        A list of lists containing the indexes corresponding to each group in the compressed matrix.
+
+    DEBUG : bool, optional
+        If set to True, performs additional checks on the input data.
+
+    Returns
+    -------
+    markov_chain : networkx.DiGraph
+        The Markov chain represented as a directed graph.
+
+    Notes
+    -----
+    The function assumes that the compressed transition matrix is already validated for its dimensions and properties.
+    """
+
+    if compressed_transition_matrix.size == 0:
+        if DEBUG:
+            print("Compressed transition matrix is empty")
+        return nx.DiGraph()
+
+    if DEBUG:
+        if compressed_transition_matrix.shape[0] != compressed_transition_matrix.shape[1]:
+            raise ValueError("Compressed transition matrix should be a square matrix")
+
+        if not np.all((compressed_transition_matrix >= 0) & (compressed_transition_matrix <= 1)):
+            raise ValueError("All elements of the compressed transition matrix should be between 0 and 1")
+
+        if not np.allclose(np.sum(compressed_transition_matrix, axis=1), 1):
+            raise ValueError("All rows of the compressed transition matrix should sum to 1")
+
+    markov_chain = nx.DiGraph()
+
+    group_names = [str(i) for i, group in enumerate(group_indexes) if group]
+
+    if DEBUG:
+        if len(group_names) != compressed_transition_matrix.shape[0]:
+            raise ValueError("Number of group names does not match number of rows in compressed transition matrix")
+
+    for i in range(compressed_transition_matrix.shape[0]):
+        for j in range(compressed_transition_matrix.shape[1]):
+            if compressed_transition_matrix[i][j] > 0:
+                markov_chain.add_edge(group_names[i], group_names[j], weight=compressed_transition_matrix[i][j])
+
+    return markov_chain
