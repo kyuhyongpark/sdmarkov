@@ -436,7 +436,28 @@ def compare_path_rmsd(
 
     return rmsd
 
-def get_random_path_probs(markov_probabilities: dict[tuple, float], seed: int=0) -> dict[tuple, float]:
+def get_random_path_probs(
+    markov_probabilities: dict[tuple, float], 
+    seed: int = 0
+) -> dict[tuple, float]:
+    """
+    Generate a dictionary of random path probabilities from a given dictionary of path probabilities.
+
+    Parameters
+    ----------
+    markov_probabilities : dict of tuples and floats
+        A dictionary where keys are tuples representing unique simple edge paths
+        in the Markov chain, and values are the corresponding probabilities.
+    seed : int, optional
+        The seed for the random number generator.
+
+    Returns
+    -------
+    path_probabilities : dict of tuples and floats
+        A dictionary where keys are tuples representing unique simple edge paths
+        in the Markov chain, and values are the corresponding probabilities.
+    """
+    random.seed(seed)
 
     path_probabilities = {}
     for path in markov_probabilities.keys():
@@ -445,19 +466,22 @@ def get_random_path_probs(markov_probabilities: dict[tuple, float], seed: int=0)
         else:
             continue
 
+    sum = {}
     for edge in path_probabilities.keys():
         # divide the probability by the sum of probabilities of edges with the same start node
         start_node = edge[0]
-        sum = 0
+        sum[edge] = 0
         for other_edge in path_probabilities.keys():
             if other_edge[0] == start_node:
-                sum += path_probabilities[other_edge]
+                sum[edge] += path_probabilities[other_edge]
 
+    for edge in path_probabilities.keys():
         # in case all edges with the same start node have probability 0
-        if sum == 0:
+        if sum[edge] == 0:
             path_probabilities[edge] = 1
+            sum[edge] = 1
         else:
-            path_probabilities[edge] /= sum
+            path_probabilities[edge] /= sum[edge]
 
     for path in markov_probabilities.keys():
         if len(path) == 2:
@@ -470,5 +494,5 @@ def get_random_path_probs(markov_probabilities: dict[tuple, float], seed: int=0)
         for edge in edges:
             probability *= path_probabilities[edge]
         path_probabilities[path] = probability
-        
+
     return path_probabilities
