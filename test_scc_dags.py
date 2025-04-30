@@ -221,8 +221,8 @@ class TestGetAttractorStates(unittest.TestCase):
         attractor_states = get_attractor_states(scc_dag)
         attractor_indexes = get_attractor_states(scc_dag, as_indexes=True)
 
-        self.assertEqual(attractor_states, [['1000', '1010'], ['0011'], ['0000', '0001', '0010']])
-        self.assertEqual(attractor_indexes, [[8, 10], [3], [0, 1, 2]])
+        self.assertEqual(attractor_states, [['0000', '0001', '0010'], ['0011'], ['1000', '1010']])
+        self.assertEqual(attractor_indexes, [[0, 1, 2], [3], [8, 10]])
 
 if __name__ == '__main__':
     unittest.main()

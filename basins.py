@@ -3,144 +3,80 @@ import networkx as nx
 
 from transition_matrix import get_stg
 from scc_dags import get_scc_dag, get_attractor_states
-from matrix_operations import nsquare
+from matrix_operations import nsquare, expand_matrix
 
 def get_strong_basins(
-    transition_matrix: np.ndarray, 
-    attractor_indexes: list[list[int]] = None, 
-    scc_dag: nx.DiGraph = None, 
-    stg: nx.DiGraph = None, 
+    transition_matrix: np.ndarray,
+    attractor_indexes: list[list[int]],
+    grouped: bool = False,
+    group_indexes: list[list[int]] = None,
     DEBUG: bool = False,
 ) -> np.ndarray:
     """
-    Get the strong basins of a Boolean network.
+    Compute the strong basin of a transition matrix.
 
     Parameters
     ----------
     transition_matrix : numpy array
-        The transition matrix.
-    attractor_indexes : list[list[int]], optional
+        The transition matrix of the Boolean network.
+    attractor_indexes : list[list[int]]
         The indices of the attractor states in the transition matrix.
-        Note that this should match the indices in the given transition matrix.
-    scc_dag : networkx DiGraph, optional
-        The SCC DAG.
-    stg : networkx DiGraph, optional
-        The state transition graph.
+        The order of the attractors is used to assign the attractor number.
+    grouped : bool, optional
+        If True, the transition matrix is grouped.
+    group_indexes : list[list[int]], optional
+        The group indexes of the transition matrix.
+        If not given, the transition matrix is not grouped.
     DEBUG : bool, optional
-        If set to True, performs additional checks.
+        If True, performs additional checks on the input data.
 
     Returns
     -------
-    strong_basin : numpy array
-        The strong basin for each state in the transition matrix.
+    strong_basins : numpy array, shape (2^N, 1)
+        The strong basin of each state in the transition matrix.
+        The value at each row is the attractor number of the strong basin that the state is in.
+        If the state is not in a strong basin, the value is -1.
     """
-
-    # start with getting the stg
-    if attractor_indexes == None and scc_dag == None and stg == None:
-        stg = get_stg(transition_matrix, DEBUG=DEBUG)
-
-    # start with getting the scc dag
-    if attractor_indexes == None and scc_dag == None and stg != None:
-        scc_dag = get_scc_dag(stg)
-
-    # start with getting the attractor index
-    if attractor_indexes == None and scc_dag != None:
-        attractor_indexes = get_attractor_states(scc_dag, as_indexes=True, DEBUG=DEBUG)
+    if DEBUG:
+        if grouped and group_indexes == None:
+            raise ValueError("If grouped is True, group_indexes must be given.")
 
     # get the basins
     T_inf = nsquare(transition_matrix, 20, DEBUG=DEBUG)
 
-    strong_basin = np.zeros((transition_matrix.shape[0], 1))
-    for row in range(transition_matrix.shape[0]):
+    if grouped:
+        T_inf = expand_matrix(T_inf, group_indexes, DEBUG=DEBUG)
+
+    strong_basin = np.zeros((T_inf.shape[0], 1))
+    for row in range(T_inf.shape[0]):
         single = False
         multiple = False
+        # iterate through each attractor
         for i, attractor in enumerate(attractor_indexes):
-            for index in attractor:
+            for state in attractor:
                 # the attractor can be reached
-                if T_inf[row, index] != 0:
-                    if single:
-                        multiple = True
-                    else:
+                if T_inf[row, state] != 0:
+                    # This is the first attractor that can be reached
+                    if not single:
                         single = True
                         attractor_index = i
+                    # This is not the first attractor that can be reached
+                    else:
+                        single = False
+                        multiple = True
+                        attractor_index = -1
                     break
+            if multiple:
+                break
+        strong_basin[row] = attractor_index
         
-        if single and not multiple:
-            strong_basin[row] = attractor_index
-        else:
-            strong_basin[row] = -1
-        
-        if DEBUG and not single and not multiple:
-            raise ValueError(f"Must have at least one attractor for row {row}")
+        if DEBUG:
+            if not single and not multiple:
+                raise ValueError(f"Must have at least one attractor for row {row}")
+            elif single and multiple:
+                raise ValueError(f"Row {row} has both a single attractor and multiple attractors")
 
     return strong_basin
-
-
-def expand_strong_basin_matrix(
-    strong_basin: np.ndarray, index_groups: list[list[int]], DEBUG: bool = False
-) -> np.ndarray:
-    """
-    Expand a compressed strong basin matrix by repeating certain rows into multiple rows.
-
-    Parameters
-    ----------
-    strong_basin : np.ndarray
-        The compressed matrix to expand.
-    index_groups : list[list[int]]
-        A list of index groups, where each group specifies the rows and columns
-        to be merged into a single row and column.
-    DEBUG : bool, optional
-        If True, perform basic checks.
-
-    Returns
-    -------
-    numpy.ndarray
-        The expanded matrix.
-
-    """
-    if DEBUG:
-        # Check that index groups are mutually exclusive
-        for i in range(len(index_groups)):
-            for j in range(i + 1, len(index_groups)):
-                if set(index_groups[i]).intersection(set(index_groups[j])):
-                    raise ValueError("Index groups must be mutually exclusive.")
-
-        # Check that the number of non-empty index groups is not greater than the size of the matrix
-        non_empty_groups = [group for group in index_groups if group]
-        if len(non_empty_groups) > strong_basin.shape[0]:
-            raise ValueError(
-                "The number of non-empty index groups must be less than or equal to the size of the matrix."
-            )
-
-    compressed_matrix_dimension = len(strong_basin)
-
-    all_indexes = []
-    for group in index_groups:
-        all_indexes.extend(group)
-
-    non_empty_groups = [group for group in index_groups if group]
-
-    expanded_matrix_dimension = (
-        compressed_matrix_dimension - len(non_empty_groups) + len(all_indexes)
-    )
-
-    expanded = np.zeros((expanded_matrix_dimension, 1))
-
-    j = 0
-    for i in range(expanded_matrix_dimension):
-        if i not in all_indexes:
-            # First len(non_empty_groups) rows of the matrix are the compressed rows,
-            # and the rest are the not-compressed rows.
-            # Here restore the j-th not-compressed row.
-            expanded[i] = strong_basin[len(non_empty_groups) + j]
-            j += 1
-        else:
-            for k, group in enumerate(non_empty_groups):
-                if i in group:
-                    expanded[i] = strong_basin[k]
-                    break
-
-    return expanded
 
 
 def compare_strong_basins(

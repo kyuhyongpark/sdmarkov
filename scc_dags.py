@@ -123,6 +123,13 @@ def get_attractor_states(scc_dag: nx.DiGraph, as_indexes: bool = False, DEBUG: b
     for node in attractors:
         attractor_states.append(sorted(scc_dag.nodes[node]['states']))
 
+    if DEBUG:
+        if not attractor_states:
+            raise ValueError("No attractors found in the SCC DAG.")
+
+    # sort the attractor states by the first state
+    attractor_states.sort(key=lambda x: x[0])
+
     if as_indexes:
         # Convert list of binary strings to list of decimals
         attractor_indexes = []
@@ -133,9 +140,5 @@ def get_attractor_states(scc_dag: nx.DiGraph, as_indexes: bool = False, DEBUG: b
                 index_list.append(decimal_value)
             attractor_indexes.append(index_list)
         return attractor_indexes
-
-    if DEBUG:
-        if not attractor_states:
-            raise ValueError("No attractors found in the SCC DAG.")
 
     return attractor_states
