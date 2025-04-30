@@ -158,6 +158,42 @@ class TestGetStrongBasins(unittest.TestCase):
 
         self.assertTrue(np.allclose(strong_basin, expected_strong_basin))
 
+    def test_example_with_excluded_attractors(self):
+        bnet = """
+        A, A | B & C
+        B, B & !C
+        C, B & !C | !C & !D | !B & C & D
+        D, !A & !B & !C & !D | !A & C & D
+        """
+
+        update = "asynchronous"
+
+        primes = bnet_text2primes(bnet)
+        primes = {key: primes[key] for key in sorted(primes)}
+        stg = primes2stg(primes, update)
+
+        transition_matrix = get_transition_matrix(stg, update=update)
+        attractor_indexes = [[0, 1, 2], [3], [8, 10]]
+        strong_basin = get_strong_basins(transition_matrix, attractor_indexes, exclude_attractors=True, DEBUG=True)
+        expected_strong_basin = np.array([[-2],
+                                          [-2],
+                                          [-2],
+                                          [-2],
+                                          [-1],
+                                          [-1],
+                                          [-1],
+                                          [-1],
+                                          [-2],
+                                          [ 2],
+                                          [-2],
+                                          [ 2],
+                                          [ 2],
+                                          [ 2],
+                                          [ 2],
+                                          [ 2]])
+
+        self.assertTrue(np.allclose(strong_basin, expected_strong_basin))
+
 class TestCompareStrongBasins(unittest.TestCase):
     def test_same_shape_no_errors(self):
         answer = np.array([[1], [1], [1], [1]])

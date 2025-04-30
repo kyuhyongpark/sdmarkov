@@ -10,6 +10,7 @@ def get_strong_basins(
     attractor_indexes: list[list[int]],
     grouped: bool = False,
     group_indexes: list[list[int]] = None,
+    exclude_attractors: bool = False,
     DEBUG: bool = False,
 ) -> np.ndarray:
     """
@@ -27,6 +28,8 @@ def get_strong_basins(
     group_indexes : list[list[int]], optional
         The group indexes of the transition matrix.
         If not given, the transition matrix is not grouped.
+    exclude_attractors : bool, optional
+        If True, the attractor states are excluded from the strong basin.
     DEBUG : bool, optional
         If True, performs additional checks on the input data.
 
@@ -36,6 +39,7 @@ def get_strong_basins(
         The strong basin of each state in the transition matrix.
         The value at each row is the attractor number of the strong basin that the state is in.
         If the state is not in a strong basin, the value is -1.
+        If the state is part of an attractor, the value is -2.
     """
     if DEBUG:
         if grouped and group_indexes == None:
@@ -47,8 +51,18 @@ def get_strong_basins(
     if grouped:
         T_inf = expand_matrix(T_inf, group_indexes, DEBUG=DEBUG)
 
+    if exclude_attractors:
+        all_attractor_states = []
+        for attractor in attractor_indexes:
+            all_attractor_states.extend(attractor)
+
     strong_basin = np.zeros((T_inf.shape[0], 1))
     for row in range(T_inf.shape[0]):
+
+        if exclude_attractors and row in all_attractor_states:
+            strong_basin[row] = -2
+            continue
+
         single = False
         multiple = False
         # iterate through each attractor
@@ -113,10 +127,10 @@ def compare_strong_basins(
             raise ValueError("The matrices must have the same shape.")
 
     # Define the conditions for each category
-    TP = np.sum((guess != -1) & (answer == guess))  # True positives
-    FP = np.sum((guess != -1) & (answer != guess))  # False positives
-    TN = np.sum((guess == -1) & (answer == guess))  # True negatives
-    FN = np.sum((guess == -1) & (answer != guess))  # False negatives
+    TP = np.sum((answer != -2) & (guess != -1) & (answer == guess))  # True positives
+    FP = np.sum((answer != -2) & (guess != -1) & (answer != guess))  # False positives
+    TN = np.sum((answer != -2) & (guess == -1) & (answer == guess))  # True negatives
+    FN = np.sum((answer != -2) & (guess == -1) & (answer != guess))  # False negatives
 
     if DEBUG:
         if FP > 0:
