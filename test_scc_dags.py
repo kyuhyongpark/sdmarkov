@@ -98,18 +98,18 @@ class TestGetOrderedStates(unittest.TestCase):
         ordered_states = get_ordered_states(scc_dag)
         self.assertEqual(ordered_states, [['000', '001'], ['010', '011'], ['100', '101']])
 
-    def test_as_indexes_true(self):
-        # Test with `as_indexes=True` to get decimal indexes
+    def test_as_indices_true(self):
+        # Test with `as_indices=True` to get decimal indices
         scc_dag = nx.DiGraph()
         scc_dag.add_node(0, states=['000', '001'])
-        ordered_states = get_ordered_states(scc_dag, as_indexes=True)
+        ordered_states = get_ordered_states(scc_dag, as_indices=True)
         self.assertEqual(ordered_states, [[0, 1]])
 
-    def test_as_indexes_false(self):
-        # Test with `as_indexes=False` to get binary strings
+    def test_as_indices_false(self):
+        # Test with `as_indices=False` to get binary strings
         scc_dag = nx.DiGraph()
         scc_dag.add_node(0, states=['000', '001'])
-        ordered_states = get_ordered_states(scc_dag, as_indexes=False)
+        ordered_states = get_ordered_states(scc_dag, as_indices=False)
         self.assertEqual(ordered_states, [['000', '001']])
 
     def test_empty_scc_dag(self):
@@ -135,10 +135,10 @@ class TestGetOrderedStates(unittest.TestCase):
         scc_dag = get_scc_dag(stg)
 
         ordered_states = get_ordered_states(scc_dag)
-        ordered_indexes = get_ordered_states(scc_dag, as_indexes=True)
+        ordered_indices = get_ordered_states(scc_dag, as_indices=True)
 
-        self.assertEqual(ordered_states, [['1001'], ['0101', '0111'], ['1101', '1111'], ['0100', '0110'], ['1011'], ['1100', '1110'], ['1000', '1010'], ['0011'], ['0000', '0001', '0010']])
-        self.assertEqual(ordered_indexes, [[9], [5, 7], [13, 15], [4, 6], [11], [12, 14], [8, 10], [3], [0, 1, 2]])
+        self.assertEqual(ordered_states, [['1001'], ['0101', '0111'], ['1101', '1111'], ['0100', '0110'], ['1011'], ['1100', '1110'], ['0000', '0001', '0010'], ['0011'], ['1000', '1010']])
+        self.assertEqual(ordered_indices, [[9], [5, 7], [13, 15], [4, 6], [11], [12, 14], [0, 1, 2], [3], [8, 10]])
 
 
 class TestGetAttractorStates(unittest.TestCase):
@@ -175,24 +175,24 @@ class TestGetAttractorStates(unittest.TestCase):
         with self.assertRaises(ValueError):
             get_attractor_states(scc_dag, DEBUG=True)
 
-    def test_as_indexes_true(self):
-        # Create a SCC DAG and test with `as_indexes=True`
+    def test_as_indices_true(self):
+        # Create a SCC DAG and test with `as_indices=True`
         scc_dag = nx.DiGraph()
         scc_dag.add_node(0, states=['101'])
         scc_dag.add_node(1, states=['110'])
         scc_dag.add_edge(0, 1)
 
-        attractor_states = get_attractor_states(scc_dag, as_indexes=True)
+        attractor_states = get_attractor_states(scc_dag, as_indices=True)
         self.assertEqual(attractor_states, [[6]])
 
-    def test_as_indexes_false(self):
-        # Create a SCC DAG and test with `as_indexes=False`
+    def test_as_indices_false(self):
+        # Create a SCC DAG and test with `as_indices=False`
         scc_dag = nx.DiGraph()
         scc_dag.add_node(0, states=['101'])
         scc_dag.add_node(1, states=['110'])
         scc_dag.add_edge(0, 1)
 
-        attractor_states = get_attractor_states(scc_dag, as_indexes=False)
+        attractor_states = get_attractor_states(scc_dag, as_indices=False)
         self.assertEqual(attractor_states, [['110']])
 
     def test_empty_scc_dag(self):
@@ -219,10 +219,10 @@ class TestGetAttractorStates(unittest.TestCase):
         scc_dag = get_scc_dag(stg)
 
         attractor_states = get_attractor_states(scc_dag)
-        attractor_indexes = get_attractor_states(scc_dag, as_indexes=True)
+        attractor_indices = get_attractor_states(scc_dag, as_indices=True)
 
         self.assertEqual(attractor_states, [['0000', '0001', '0010'], ['0011'], ['1000', '1010']])
-        self.assertEqual(attractor_indexes, [[0, 1, 2], [3], [8, 10]])
+        self.assertEqual(attractor_indices, [[0, 1, 2], [3], [8, 10]])
 
 if __name__ == '__main__':
     unittest.main()

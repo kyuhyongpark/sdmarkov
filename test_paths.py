@@ -61,8 +61,8 @@ class TestGetAllPaths(unittest.TestCase):
                                                  [0.   , 0.    , 0.    , 0.    , 1.   , 0.    , 0.   ],
                                                  [0.   , 0.    , 0.    , 0.25  , 0.   , 0.625 , 0.125],
                                                  [0.   , 0.    , 0.    , 0.    , 0.25 , 0.    , 0.75 ]])
-        group_indexes = [[4, 5, 6, 7], [], [0, 1, 2], [3], [12, 14], [8, 10], [13, 15], [9, 11]]
-        markov_chain = get_markov_chain(compressed_transition_matrix, group_indexes)
+        group_indices = [[4, 5, 6, 7], [], [0, 1, 2], [3], [12, 14], [8, 10], [13, 15], [9, 11]]
+        markov_chain = get_markov_chain(compressed_transition_matrix, group_indices)
         all_paths = get_all_paths(markov_chain)
         self.assertEqual(all_paths, [('0', '2'), ('0', '3'), ('0', '4'), ('0', '6'), ('4', '5'), ('6', '4'), ('6', '7'), ('7', '5'),
                                      ('0', '4', '5'), ('0', '6', '4'), ('0', '6', '7'), ('6', '4', '5'), ('6', '7', '5'),
@@ -147,8 +147,8 @@ class TestGetMarkovChainPathProbs(unittest.TestCase):
                                                  [0.   , 0.    , 0.    , 0.    , 1.   , 0.    , 0.   ],
                                                  [0.   , 0.    , 0.    , 0.25  , 0.   , 0.625 , 0.125],
                                                  [0.   , 0.    , 0.    , 0.    , 0.25 , 0.    , 0.75 ]])
-        group_indexes = [[4, 5, 6, 7], [], [0, 1, 2], [3], [12, 14], [8, 10], [13, 15], [9, 11]]
-        markov_chain = get_markov_chain(compressed_transition_matrix, group_indexes)
+        group_indices = [[4, 5, 6, 7], [], [0, 1, 2], [3], [12, 14], [8, 10], [13, 15], [9, 11]]
+        markov_chain = get_markov_chain(compressed_transition_matrix, group_indices)
         all_paths = get_all_paths(markov_chain)
         path_probabilities = get_markov_chain_path_probs(markov_chain, all_paths)
         expected_result = {('0', '2'): np.float64(1/4), ('0', '3'): np.float64(1/4), ('0', '4'): np.float64(1/4), ('0', '6'): np.float64(1/4), ('4', '5'): np.float64(1), ('6', '4'): np.float64(2/3), ('6', '7'): np.float64(1/3), ('7', '5'): np.float64(1),

@@ -7,9 +7,9 @@ from matrix_operations import nsquare, expand_matrix
 
 def get_strong_basins(
     transition_matrix: np.ndarray,
-    attractor_indexes: list[list[int]],
+    attractor_indices: list[list[int]],
     grouped: bool = False,
-    group_indexes: list[list[int]] = None,
+    group_indices: list[list[int]] = None,
     exclude_attractors: bool = False,
     DEBUG: bool = False,
 ) -> np.ndarray:
@@ -20,13 +20,13 @@ def get_strong_basins(
     ----------
     transition_matrix : numpy array
         The transition matrix of the Boolean network.
-    attractor_indexes : list[list[int]]
+    attractor_indices : list[list[int]]
         The indices of the attractor states in the transition matrix.
         The order of the attractors is used to assign the attractor number.
     grouped : bool, optional
         If True, the transition matrix is grouped.
-    group_indexes : list[list[int]], optional
-        The group indexes of the transition matrix.
+    group_indices : list[list[int]], optional
+        The group indices of the transition matrix.
         If not given, the transition matrix is not grouped.
     exclude_attractors : bool, optional
         If True, the attractor states are excluded from the strong basin.
@@ -42,18 +42,37 @@ def get_strong_basins(
         If the state is part of an attractor, the value is -2.
     """
     if DEBUG:
-        if grouped and group_indexes == None:
-            raise ValueError("If grouped is True, group_indexes must be given.")
+        if grouped and group_indices == None:
+            raise ValueError("If grouped is True, group_indices must be given.")
 
     # get the basins
     T_inf = nsquare(transition_matrix, 20, DEBUG=DEBUG)
 
     if grouped:
-        T_inf = expand_matrix(T_inf, group_indexes, DEBUG=DEBUG)
+        T_inf = expand_matrix(T_inf, group_indices, DEBUG=DEBUG)
+
+    if DEBUG:
+        # Check that the given matrix is a transition matrix of size 2**N
+        if T_inf.shape[0] != T_inf.shape[1]:
+            raise ValueError("The matrix must be a square matrix.")
+        if T_inf.shape[0] != 2 ** int(np.log2(T_inf.shape[0])):
+            raise ValueError("The matrix must be a transition matrix of size 2**N.")
+
+        # Check that the attractor indices are valid
+        for attractor in attractor_indices:
+            for state in attractor:
+                if 0 > state or state >= T_inf.shape[0]:
+                    raise ValueError("The attractor indices must be valid.")
+
+        # Check that the attractor indices are mutually exclusive
+        for i in range(len(attractor_indices)):
+            for j in range(i + 1, len(attractor_indices)):
+                if set(attractor_indices[i]).intersection(set(attractor_indices[j])):
+                    raise ValueError("The attractor indices must be mutually exclusive.")
 
     if exclude_attractors:
         all_attractor_states = []
-        for attractor in attractor_indexes:
+        for attractor in attractor_indices:
             all_attractor_states.extend(attractor)
 
     strong_basin = np.zeros((T_inf.shape[0], 1))
@@ -66,7 +85,7 @@ def get_strong_basins(
         single = False
         multiple = False
         # iterate through each attractor
-        for i, attractor in enumerate(attractor_indexes):
+        for i, attractor in enumerate(attractor_indices):
             for state in attractor:
                 # the attractor can be reached
                 if T_inf[row, state] != 0:
@@ -140,7 +159,7 @@ def compare_strong_basins(
 
 def get_basin_ratios(
     T_inf: np.ndarray,
-    attractor_indexes: list[list[int]],
+    attractor_indices: list[list[int]],
     DEBUG: bool = False,
 ) -> dict:
     """
@@ -151,7 +170,7 @@ def get_basin_ratios(
     T_inf : numpy array
         The transition matrix at t=inf.
         Note that this should be 2**N x 2**N.
-    attractor_indexes : list[list[int]], optional
+    attractor_indices : list[list[int]], optional
         The indices of the attractor states in the transition matrix.
     DEBUG : bool, optional
         If True, performs additional checks.
@@ -169,22 +188,22 @@ def get_basin_ratios(
         if T_inf.shape[0] != 2 ** int(np.log2(T_inf.shape[0])):
             raise ValueError("The matrix must be a transition matrix of size 2**N.")
 
-        # Check that the attractor indexes are valid
-        for attractor in attractor_indexes:
+        # Check that the attractor indices are valid
+        for attractor in attractor_indices:
             for state in attractor:
                 if 0 > state or state >= T_inf.shape[0]:
-                    raise ValueError("The attractor indexes must be valid.")
+                    raise ValueError("The attractor indices must be valid.")
 
-        # Check that the attractor indexes are mutually exclusive
-        for i in range(len(attractor_indexes)):
-            for j in range(i + 1, len(attractor_indexes)):
-                if set(attractor_indexes[i]).intersection(set(attractor_indexes[j])):
-                    raise ValueError("The attractor indexes must be mutually exclusive.")
+        # Check that the attractor indices are mutually exclusive
+        for i in range(len(attractor_indices)):
+            for j in range(i + 1, len(attractor_indices)):
+                if set(attractor_indices[i]).intersection(set(attractor_indices[j])):
+                    raise ValueError("The attractor indices must be mutually exclusive.")
 
     state_prob = np.mean(T_inf, axis=0)
 
     attractor_ratio = {}
-    for attractor in attractor_indexes:
+    for attractor in attractor_indices:
         attractor_ratio[tuple(attractor)] = state_prob[attractor].sum()
 
     return attractor_ratio
@@ -229,23 +248,23 @@ def get_basin_ratios_rmsd(
 
 # def get_node_average_values(
 #     transition_matrix: np.ndarray,
-#     attractor_indexes: list[list[int]] = None,
+#     attractor_indices: list[list[int]] = None,
 #     scc_dag: nx.DiGraph = None,
 #     stg: nx.DiGraph = None,
 #     DEBUG: bool = False
 # ):
 
 #     # start with getting the stg
-#     if attractor_indexes == None and scc_dag == None and stg == None:
+#     if attractor_indices == None and scc_dag == None and stg == None:
 #         stg = get_stg(transition_matrix, DEBUG=DEBUG)
 
 #     # start with getting the scc dag
-#     if attractor_indexes == None and scc_dag == None and stg != None:
+#     if attractor_indices == None and scc_dag == None and stg != None:
 #         scc_dag = get_scc_dag(stg)
 
 #     # start with getting the attractor index
-#     if attractor_indexes == None and scc_dag != None:
-#         attractor_indexes = get_attractor_states(scc_dag, as_indexes=True, DEBUG=DEBUG)
+#     if attractor_indices == None and scc_dag != None:
+#         attractor_indices = get_attractor_states(scc_dag, as_indices=True, DEBUG=DEBUG)
 
 #     # get the basins
 #     T_inf = nsquare(transition_matrix, 20, DEBUG=DEBUG)
@@ -253,7 +272,7 @@ def get_basin_ratios_rmsd(
 #     state_prob = np.mean(T_inf, axis=0)
 
 #     all_attractor_states = []
-#     for attractor in attractor_indexes:
+#     for attractor in attractor_indices:
 #         all_attractor_states.extend(attractor)
 
 #     print(all_attractor_states)

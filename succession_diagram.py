@@ -471,7 +471,7 @@ def get_sd_group_states(
     return True, sd_group_states, {}
 
 
-def states_to_indexes(state_groups: list[list[str]], DEBUG: bool = False) -> list[list[int]]:
+def states_to_indices(state_groups: list[list[str]], DEBUG: bool = False) -> list[list[int]]:
     """
     Convert a list of binary strings to a list of sorted integers.
 
@@ -489,7 +489,7 @@ def states_to_indexes(state_groups: list[list[str]], DEBUG: bool = False) -> lis
     
     Examples
     --------
-    >>> states_to_indexes([['0100', '0101', '0110', '0111', '1101', '1111'], ['1001', '1011'], ['0000', '0001', '0010'], ['0011'], ['1100', '1110'], ['1000', '1010']])
+    >>> states_to_indices([['0100', '0101', '0110', '0111', '1101', '1111'], ['1001', '1011'], ['0000', '0001', '0010'], ['0011'], ['1100', '1110'], ['1000', '1010']])
     [[4, 5, 6, 7, 13, 15], [9, 11], [0, 1, 2], [3], [12, 14], [8, 10]]
     """
 

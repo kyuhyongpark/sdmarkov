@@ -3,7 +3,7 @@ import random
 from collections import Counter
 import matplotlib.pyplot as plt
 
-from succession_diagram import get_sd_nodes_and_edges, get_sd_group_states, states_to_indexes
+from succession_diagram import get_sd_nodes_and_edges, get_sd_group_states, states_to_indices
 
 
 def sd_grouping(bnet: str, DEBUG: bool = False) -> list[list[int]]:
@@ -69,9 +69,9 @@ def sd_grouping(bnet: str, DEBUG: bool = False) -> list[list[int]]:
         if extra_groups:
             print(f"{extra_groups=}")
 
-    indexes = states_to_indexes(sd_group_states, DEBUG=DEBUG)
+    indices = states_to_indices(sd_group_states, DEBUG=DEBUG)
 
-    return indexes
+    return indices
 
 def null_grouping(bnet: str, DEBUG: bool = False) -> list[list[int]]:
     """
@@ -104,13 +104,13 @@ def null_grouping(bnet: str, DEBUG: bool = False) -> list[list[int]]:
 
     success, min_trap_states, duplicates = get_sd_group_states(nodes, min_trap_nodes, sd_edges=_, DEBUG=DEBUG)
 
-    indexes = states_to_indexes(min_trap_states, DEBUG=DEBUG)
+    indices = states_to_indices(min_trap_states, DEBUG=DEBUG)
 
-    return indexes
+    return indices
 
 def random_grouping(
-    sd_indexes: list[list[int]],
-    null_indexes: list[list[int]],
+    sd_indices: list[list[int]],
+    null_indices: list[list[int]],
     smallest_group_size: int = 1,
     seed: int|None = None,
     DEBUG: bool = False,
@@ -120,10 +120,10 @@ def random_grouping(
 
     Parameters
     ----------
-    sd_indexes : list[list[int]]
-        The groups of indexes of the states that correspond to succession diagram nodes.
-    null_indexes : list[list[int]]
-        The groups of indexes of the states in the minimal trapspaces and the transient states.
+    sd_indices : list[list[int]]
+        The groups of indices of the states that correspond to succession diagram nodes.
+    null_indices : list[list[int]]
+        The groups of indices of the states in the minimal trapspaces and the transient states.
     smallest_group_size : int, optional
         The smallest number of elements in each group. Defaults to 1.
     seed : int|None, optional
@@ -134,53 +134,53 @@ def random_grouping(
     Returns
     -------
     list[list[int]]
-        A list of lists of indexes, where each sublist is a group of transient states.
+        A list of lists of indices, where each sublist is a group of transient states.
     """
     if DEBUG:
-        # All index groups in null_indexes except the first one should be in sd_indexes
-        for index_group in null_indexes[1:]:
-            if index_group not in sd_indexes:
-                raise ValueError(f"{index_group} is in null_indexes but not in sd_indexes.")
+        # All index groups in null_indices except the first one should be in sd_indices
+        for index_group in null_indices[1:]:
+            if index_group not in sd_indices:
+                raise ValueError(f"{index_group} is in null_indices but not in sd_indices.")
             
-        # All indexes of sd_indexes and null_indexes should be unique
-        all_sd_indexes = []
-        for index_group in sd_indexes:
-            all_sd_indexes.extend(index_group)
-        all_null_indexes = []
-        for index_group in null_indexes:
-            all_null_indexes.extend(index_group)
-        if len(set(all_sd_indexes)) != len(all_sd_indexes) or len(set(all_null_indexes)) != len(all_null_indexes):
-            raise ValueError("All indexes should be unique in sd_indexes and null_indexes.")
+        # All indices of sd_indices and null_indices should be unique
+        all_sd_indices = []
+        for index_group in sd_indices:
+            all_sd_indices.extend(index_group)
+        all_null_indices = []
+        for index_group in null_indices:
+            all_null_indices.extend(index_group)
+        if len(set(all_sd_indices)) != len(all_sd_indices) or len(set(all_null_indices)) != len(all_null_indices):
+            raise ValueError("All indices should be unique in sd_indices and null_indices.")
         
-        # All indexes should be present in both sd_indexes and null_indexes
-        all_indexes = []
-        for index_group in sd_indexes:
-            all_indexes.extend(index_group)
-        for index_group in null_indexes:
-            all_indexes.extend(index_group)
-        if len(set(all_indexes)) != len(all_sd_indexes) or len(set(all_indexes)) != len(all_null_indexes):
-            raise ValueError("All indexes should be present in both sd_indexes and null_indexes.")
+        # All indices should be present in both sd_indices and null_indices
+        all_indices = []
+        for index_group in sd_indices:
+            all_indices.extend(index_group)
+        for index_group in null_indices:
+            all_indices.extend(index_group)
+        if len(set(all_indices)) != len(all_sd_indices) or len(set(all_indices)) != len(all_null_indices):
+            raise ValueError("All indices should be present in both sd_indices and null_indices.")
     
-    # Get the indexes of the transient states from the null_indexes
-    transient_indexes = null_indexes[0]
+    # Get the indices of the transient states from the null_indices
+    transient_indices = null_indices[0]
 
-    # if transient_indexes is empty, return null_indexes
-    if not transient_indexes:
-        return null_indexes
+    # if transient_indices is empty, return null_indices
+    if not transient_indices:
+        return null_indices
 
-    # Get the number of non-empty groups in sd_indexes and null_indexes
-    non_empty_sd_indexes = len([index_group for index_group in sd_indexes if index_group])
-    non_empty_null_indexes = len([index_group for index_group in null_indexes if index_group])
+    # Get the number of non-empty groups in sd_indices and null_indices
+    non_empty_sd_indices = len([index_group for index_group in sd_indices if index_group])
+    non_empty_null_indices = len([index_group for index_group in null_indices if index_group])
 
     # Get the number of groups
-    num_groups = non_empty_sd_indexes - non_empty_null_indexes + 1
+    num_groups = non_empty_sd_indices - non_empty_null_indices + 1
 
     # Divide the transient states into num_groups
-    indexes = divide_list_into_sublists(transient_indexes, num_groups, smallest_group_size, seed=seed)
+    indices = divide_list_into_sublists(transient_indices, num_groups, smallest_group_size, seed=seed)
 
-    indexes.extend(null_indexes[1:])
+    indices.extend(null_indices[1:])
 
-    return indexes
+    return indices
 
 
 def divide_list_into_sublists(

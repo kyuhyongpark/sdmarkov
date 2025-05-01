@@ -399,7 +399,7 @@ def get_stg(transition_matrix: np.ndarray, DEBUG: bool = False) -> nx.DiGraph:
     return stg
 
 
-def get_markov_chain(compressed_transition_matrix: np.ndarray, group_indexes: list, DEBUG: bool = False) -> nx.DiGraph:
+def get_markov_chain(compressed_transition_matrix: np.ndarray, group_indices: list, DEBUG: bool = False) -> nx.DiGraph:
     """
     Construct a Markov chain from a compressed transition matrix.
 
@@ -408,8 +408,8 @@ def get_markov_chain(compressed_transition_matrix: np.ndarray, group_indexes: li
     compressed_transition_matrix : np.ndarray
         The compressed transition matrix. The entry at row i and column j is the probability of transitioning from group i to group j.
 
-    group_indexes : list
-        A list of lists containing the indexes corresponding to each group in the compressed matrix.
+    group_indices : list
+        A list of lists containing the indices corresponding to each group in the compressed matrix.
 
     DEBUG : bool, optional
         If set to True, performs additional checks on the input data.
@@ -441,7 +441,7 @@ def get_markov_chain(compressed_transition_matrix: np.ndarray, group_indexes: li
 
     markov_chain = nx.DiGraph()
 
-    group_names = [str(i) for i, group in enumerate(group_indexes) if group]
+    group_names = [str(i) for i, group in enumerate(group_indices) if group]
 
     if DEBUG:
         if len(group_names) != compressed_transition_matrix.shape[0]:

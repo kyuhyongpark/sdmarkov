@@ -7,20 +7,20 @@ from matrix_operations import nsquare
 
 def get_decision_matrix(
     transition_matrix: np.ndarray, 
-    attractor_indexes: list[list[int]] = None, 
+    attractor_indices: list[list[int]] = None, 
     scc_dag: nx.DiGraph = None, 
     stg: nx.DiGraph = None, 
     DEBUG: bool = False,
 ) -> np.ndarray:
     """
     This function returns a matrix with the same shape as the transition matrix, 
-    where each entry is the decision matrix for the corresponding state.
+    where each entry encodes whether the corresponding transition is a decision.
 
     Parameters
     ----------
     transition_matrix : numpy array
         The transition matrix. The entry at row i and column j is the probability of transitioning from state i to state j.
-    attractor_indexes : list[list[int]], optional
+    attractor_indices : list[list[int]], optional
         The indices of the attractor states in the transition matrix.
     scc_dag : networkx DiGraph, optional
         The SCC DAG.
@@ -49,16 +49,16 @@ def get_decision_matrix(
     """
 
     # start with getting the stg
-    if attractor_indexes == None and scc_dag == None and stg == None:
+    if attractor_indices == None and scc_dag == None and stg == None:
         stg = get_stg(transition_matrix, DEBUG=DEBUG)
 
     # start with getting the scc dag
-    if attractor_indexes == None and scc_dag == None and stg != None:
+    if attractor_indices == None and scc_dag == None and stg != None:
         scc_dag = get_scc_dag(stg)
 
     # start with getting the attractor index
-    if attractor_indexes == None and scc_dag != None:
-        attractor_indexes = get_attractor_states(scc_dag, as_indexes=True, DEBUG=DEBUG)
+    if attractor_indices == None and scc_dag != None:
+        attractor_indices = get_attractor_states(scc_dag, as_indices=True, DEBUG=DEBUG)
 
     # get the basins
     T_inf = nsquare(transition_matrix, 20, DEBUG=DEBUG)
@@ -66,7 +66,7 @@ def get_decision_matrix(
     basin = np.zeros((transition_matrix.shape[0], transition_matrix.shape[1]))
     for row in range(transition_matrix.shape[0]):
         reachable = 0
-        for attractor in attractor_indexes:
+        for attractor in attractor_indices:
             for index in attractor:
                 if T_inf[row, index] != 0:
                     reachable += 1
@@ -157,21 +157,21 @@ def expand_decision_matrix(
 
     compressed_matrix_dimension = len(decision_matrix)
 
-    all_indexes = []
+    all_indices = []
     for group in index_groups:
-        all_indexes.extend(group)
+        all_indices.extend(group)
 
     non_empty_groups = [group for group in index_groups if group]
 
     expanded_matrix_dimension = (
-        compressed_matrix_dimension - len(non_empty_groups) + len(all_indexes)
+        compressed_matrix_dimension - len(non_empty_groups) + len(all_indices)
     )
 
     row_expanded = np.zeros((expanded_matrix_dimension, compressed_matrix_dimension))
 
     j = 0
     for i in range(expanded_matrix_dimension):
-        if i not in all_indexes:
+        if i not in all_indices:
             # First len(non_empty_groups) rows of the matrix are the compressed rows,
             # and the rest are the not-compressed rows.
             # Here restore the j-th not-compressed row.
@@ -187,7 +187,7 @@ def expand_decision_matrix(
 
     j = 0
     for i in range(expanded_matrix_dimension):
-        if i not in all_indexes:
+        if i not in all_indices:
             # First len(non_empty_groups) columns of the matrix are the compressed columns,
             # and the rest are the not-compressed columns.
             # Here restore the j-th not-compressed column.

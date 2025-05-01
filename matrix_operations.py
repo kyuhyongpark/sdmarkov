@@ -149,11 +149,11 @@ def compress_matrix(
             if any(index < 0 or index >= matrix.shape[0] for index in group):
                 raise ValueError("Index groups must be within the bounds of the matrix.")
 
-    all_indexes = []
+    all_indices = []
     for group in index_groups:
-        all_indexes.extend(group)
+        all_indices.extend(group)
 
-    row_merged = np.delete(matrix, all_indexes, axis=0)
+    row_merged = np.delete(matrix, all_indices, axis=0)
 
     for group in reversed(index_groups):
         if len(group) == 0:
@@ -161,7 +161,7 @@ def compress_matrix(
         insert_row = np.mean(matrix[group], axis=0)
         row_merged = np.insert(row_merged, 0, insert_row, axis=0)
 
-    merged = np.delete(row_merged, all_indexes, axis=1)
+    merged = np.delete(row_merged, all_indices, axis=1)
 
     for group in reversed(index_groups):
         if len(group) == 0:
@@ -238,21 +238,21 @@ def expand_matrix(
 
     compressed_matrix_dimension = len(matrix)
 
-    all_indexes = []
+    all_indices = []
     for group in index_groups:
-        all_indexes.extend(group)
+        all_indices.extend(group)
 
     non_empty_groups = [group for group in index_groups if group]
 
     expanded_matrix_dimension = (
-        compressed_matrix_dimension - len(non_empty_groups) + len(all_indexes)
+        compressed_matrix_dimension - len(non_empty_groups) + len(all_indices)
     )
 
     row_expanded = np.zeros((expanded_matrix_dimension, compressed_matrix_dimension))
 
     j = 0
     for i in range(expanded_matrix_dimension):
-        if i not in all_indexes:
+        if i not in all_indices:
             # First len(non_empty_groups) rows of the matrix are the compressed rows,
             # and the rest are the not-compressed rows.
             # Here restore the j-th not-compressed row.
@@ -268,7 +268,7 @@ def expand_matrix(
 
     j = 0
     for i in range(expanded_matrix_dimension):
-        if i not in all_indexes:
+        if i not in all_indices:
             # First len(non_empty_groups) columns of the matrix are the compressed columns,
             # and the rest are the not-compressed columns.
             # Here restore the j-th not-compressed column.
@@ -573,6 +573,9 @@ def get_block_triangular(transition_matrix, scc_indices=None, scc_dag=None, stg=
     Note that the topological order of the scc dag is not unique.
     Use scc_indices when comparing different block triangular matrices,
     so that the order of states is consistent.
+
+    Also note that the outcome may not be block triangular
+    if using scc_indices of a different matrix.
     """
 
     if DEBUG:
@@ -588,7 +591,7 @@ def get_block_triangular(transition_matrix, scc_indices=None, scc_dag=None, stg=
 
     # Starting from the scc dag
     if scc_dag != None and scc_indices == None:
-        scc_indices = get_ordered_states(scc_dag, as_indexes=True)
+        scc_indices = get_ordered_states(scc_dag, as_indices=True)
         if DEBUG:
             print("Calculated scc_indices", scc_indices)
 
@@ -598,11 +601,6 @@ def get_block_triangular(transition_matrix, scc_indices=None, scc_dag=None, stg=
         index_list.extend(scc)
     
     block_triangular = reorder_matrix(transition_matrix, index_list)
-
-    # if DEBUG:
-    #     # Check that the matrix is block triangular
-    #     if not is_block_triangular(block_triangular, scc_indices):
-    #         print("The matrix is not block triangular.")
 
     return block_triangular, scc_indices
 

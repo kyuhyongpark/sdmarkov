@@ -43,19 +43,22 @@ def get_scc_dag(stg: nx.DiGraph) -> nx.DiGraph:
     return dag
 
 
-def get_ordered_states(scc_dag: nx.DiGraph, as_indexes: bool = False) -> list:
+def get_ordered_states(scc_dag: nx.DiGraph, as_indices: bool = False, DEBUG: bool = False) -> list[list[int]]:
     """
     Returns the ordered list of states in the SCC DAG.
-
     The states are ordered according to the topological order of the SCC DAG.
+
+    Attractor states are moved to the end of the list, and are sorted by their first state.
 
     Parameters
     ----------
     scc_dag : networkx DiGraph
         The SCC DAG.
-    as_indexes : bool, optional
-        If True, the states are returned as a list of decimal indexes,
+    as_indices : bool, optional
+        If True, the states are returned as a list of decimal indices,
         otherwise as a list of binary strings.
+    DEBUG : bool, optional
+        If True, performs additional checks.
 
     Returns
     -------
@@ -69,33 +72,39 @@ def get_ordered_states(scc_dag: nx.DiGraph, as_indexes: bool = False) -> list:
     attractors = [node for node, out_degree in scc_dag.out_degree() if out_degree == 0]
 
     # Remove the attractors from the topological order
-    topological_order = [node for node in topological_order if node not in attractors]
-
-    # Add the attractors to the end of the topological order
-    topological_order.extend(attractors)
+    non_attractors = [node for node in topological_order if node not in attractors]
 
     # Build the final ordered list of states
     ordered_states = []
-    for scc_id in topological_order:
+    for scc_id in non_attractors:
         # Get the states in the SCC and sort them
         scc_states = sorted(scc_dag.nodes[scc_id]['states'])
         ordered_states.append(scc_states)
 
-    if as_indexes:
+    attractor_states = []
+    for scc_id in attractors:
+        # Get the states in the SCC and sort them
+        scc_states = sorted(scc_dag.nodes[scc_id]['states'])
+        attractor_states.append(scc_states)
+    attractor_states.sort(key=lambda x: x[0])
+
+    ordered_states.extend(attractor_states)
+
+    if as_indices:
         # Convert list of binary string to list of decimals
-        ordered_indexes = []
+        ordered_indices = []
         for binary_strings in ordered_states:
             index_list = []
             for binary_string in binary_strings:
                 decimal_value = int(binary_string, 2)
                 index_list.append(decimal_value)
-            ordered_indexes.append(index_list)
-        return ordered_indexes
+            ordered_indices.append(index_list)
+        return ordered_indices
 
     return ordered_states
 
 
-def get_attractor_states(scc_dag: nx.DiGraph, as_indexes: bool = False, DEBUG: bool = False) -> list:
+def get_attractor_states(scc_dag: nx.DiGraph, as_indices: bool = False, DEBUG: bool = False) -> list[list[int]]:
     """
     Retrieve the attractor states from a given SCC DAG.
 
@@ -105,15 +114,15 @@ def get_attractor_states(scc_dag: nx.DiGraph, as_indexes: bool = False, DEBUG: b
     ----------
     scc_dag : networkx DiGraph
         The SCC DAG to analyze.
-    as_indexes : bool, optional
-        If True, the attractor states are returned as decimal indexes,
+    as_indices : bool, optional
+        If True, the attractor states are returned as decimal indices,
         otherwise as binary strings.
 
     Returns
     -------
     attractor_states : list
         A list of attractor states in the SCC DAG.
-        Each attractor is represented by the states within it, either as binary strings or decimal indexes.
+        Each attractor is represented by the states within it, either as binary strings or decimal indices.
     """
 
     # Identify attractors (sink nodes in the DAG)
@@ -130,15 +139,15 @@ def get_attractor_states(scc_dag: nx.DiGraph, as_indexes: bool = False, DEBUG: b
     # sort the attractor states by the first state
     attractor_states.sort(key=lambda x: x[0])
 
-    if as_indexes:
+    if as_indices:
         # Convert list of binary strings to list of decimals
-        attractor_indexes = []
+        attractor_indices = []
         for binary_strings in attractor_states:
             index_list = []
             for binary_string in binary_strings:
                 decimal_value = int(binary_string, 2)
                 index_list.append(decimal_value)
-            attractor_indexes.append(index_list)
-        return attractor_indexes
+            attractor_indices.append(index_list)
+        return attractor_indices
 
     return attractor_states
