@@ -287,7 +287,7 @@ def expand_matrix(
     return expanded
 
 
-def get_rms_diff(A: np.ndarray, B: np.ndarray, DEBUG: bool = False) -> float:
+def get_rms_diff(A: np.ndarray, B: np.ndarray, compressed: bool = False, partial: bool = False, DEBUG: bool = False) -> float:
     """
     Calculate the root mean squared (RMS) difference between two stochastic matrices A and B.
 
@@ -297,6 +297,14 @@ def get_rms_diff(A: np.ndarray, B: np.ndarray, DEBUG: bool = False) -> float:
         The first matrix.
     B : numpy array
         The second matrix.
+    compressed : bool, optional
+        If True, the matrices are compressed,
+        and the number of rows/columns don't need to be 2^N.
+    partial : bool, optional
+        If True, the matrices are partial,
+        and number of rows/columns don't need to be 2^N,
+        the matrixes don't need to be square,
+        and each row doesn't need to sum to 1.
     DEBUG : bool, optional
         If True, perform basic checks.
 
@@ -318,8 +326,8 @@ def get_rms_diff(A: np.ndarray, B: np.ndarray, DEBUG: bool = False) -> float:
         if A.shape != B.shape:
             raise ValueError("The matrices must have the same shape.")
 
-        check_transition_matrix(A, compressed=True)
-        check_transition_matrix(B, compressed=True)
+        check_transition_matrix(A, compressed, partial)
+        check_transition_matrix(B, compressed, partial)
 
     # Convert A and B to floats
     A = A.astype(np.float64)
@@ -337,7 +345,7 @@ def get_rms_diff(A: np.ndarray, B: np.ndarray, DEBUG: bool = False) -> float:
     return rms_diff
 
 
-def get_dkl(A: np.ndarray, B: np.ndarray, DEBUG: bool = False) -> float:
+def get_dkl(A: np.ndarray, B: np.ndarray, compressed: bool = False, partial: bool = False, DEBUG: bool = False) -> float:
     """
     Calculate the Kullback-Leibler divergence between two stochastic matrices A and B.
 
@@ -347,6 +355,14 @@ def get_dkl(A: np.ndarray, B: np.ndarray, DEBUG: bool = False) -> float:
         The first matrix.
     B : numpy array
         The second matrix.
+    compressed : bool, optional
+        If True, the matrices are compressed,
+        and the number of rows/columns don't need to be 2^N.
+    partial : bool, optional
+        If True, the matrices are partial,
+        and number of rows/columns don't need to be 2^N,
+        the matrixes don't need to be square,
+        and each row doesn't need to sum to 1.
     DEBUG : bool, optional
         If True, perform basic checks.
 
@@ -368,8 +384,8 @@ def get_dkl(A: np.ndarray, B: np.ndarray, DEBUG: bool = False) -> float:
         if A.shape != B.shape:
             raise ValueError("The matrices must have the same shape.")
 
-        check_transition_matrix(A, compressed=True)
-        check_transition_matrix(B, compressed=True)
+        check_transition_matrix(A, compressed, partial)
+        check_transition_matrix(B, compressed, partial)
 
     # Convert A and B to floats
     A = A.astype(np.float64)

@@ -74,13 +74,14 @@ def get_ordered_states(scc_dag: nx.DiGraph, as_indices: bool = False, DEBUG: boo
     # Remove the attractors from the topological order
     non_attractors = [node for node in topological_order if node not in attractors]
 
-    # Build the final ordered list of states
+    # Build the ordered list of transient states
     ordered_states = []
     for scc_id in non_attractors:
         # Get the states in the SCC and sort them
         scc_states = sorted(scc_dag.nodes[scc_id]['states'])
         ordered_states.append(scc_states)
 
+    # Build the ordered list of attractor states
     attractor_states = []
     for scc_id in attractors:
         # Get the states in the SCC and sort them

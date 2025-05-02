@@ -1,9 +1,11 @@
 import math
 import random
 from collections import Counter
+
 import matplotlib.pyplot as plt
 
-from succession_diagram import get_sd_nodes_and_edges, get_sd_group_states, states_to_indices
+from succession_diagram import get_sd_nodes_and_edges, get_sd_group_states
+from helper import states_to_indices
 
 
 def sd_grouping(bnet: str, DEBUG: bool = False) -> list[list[int]]:

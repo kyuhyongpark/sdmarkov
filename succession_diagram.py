@@ -2,6 +2,7 @@ from itertools import product
 
 import biobalm
 
+
 def get_sd_nodes_and_edges(
     bnet: str, minimal: bool = False, DEBUG: bool = False
 ) -> tuple[list[str], list[dict[str, int]], list[list[dict[str, int]]]]:
@@ -82,6 +83,7 @@ def get_sd_nodes_and_edges(
 
     return nodes, sd_nodes, sd_edges
 
+
 def sort_sd_nodes(
     nodes: list[str],
     sd_nodes: list[dict[str, int]],
@@ -149,6 +151,7 @@ def sort_sd_nodes(
     sorted_sd_nodes = sorted(sd_nodes, key=lambda d: custom_sort_key(d, nodes))
 
     return sorted_sd_nodes
+
 
 def generate_states(
     nodes: list[str],
@@ -312,6 +315,7 @@ def get_binary_states(
     # Generate all binary states that agree with node_values
     return generate_states(nodes, node_values, valid_exclude_values, DEBUG=DEBUG)
 
+
 def get_sd_group_states(
     nodes: list[str],
     sd_nodes: list[dict[str, int]],
@@ -469,45 +473,3 @@ def get_sd_group_states(
             return False, sd_group_states, duplicate_dict
     
     return True, sd_group_states, {}
-
-
-def states_to_indices(state_groups: list[list[str]], DEBUG: bool = False) -> list[list[int]]:
-    """
-    Convert a list of binary strings to a list of sorted integers.
-
-    Parameters
-    ----------
-    state_groups: list[list[str]]
-        A list of lists, where each sublist contains binary strings.
-    DEBUG: bool, optional
-        If True, checks if all state strings have the same length and are mutually exclusive.
-
-    Returns
-    -------
-    list[list[int]]
-        A list of sorted integers, where each sublist corresponds to the binary strings in the input.
-    
-    Examples
-    --------
-    >>> states_to_indices([['0100', '0101', '0110', '0111', '1101', '1111'], ['1001', '1011'], ['0000', '0001', '0010'], ['0011'], ['1100', '1110'], ['1000', '1010']])
-    [[4, 5, 6, 7, 13, 15], [9, 11], [0, 1, 2], [3], [12, 14], [8, 10]]
-    """
-
-    if DEBUG:
-        # Check if all state strings are of the same length
-        lengths = [len(state) for state_group in state_groups for state in state_group]
-        if len(set(lengths)) != 1:
-            raise ValueError("Not all states have the same length")
-        
-        # Check if all groups are mutually exclusive
-        all_states = [state for state_group in state_groups for state in state_group]
-        if len(all_states) != len(set(all_states)):
-            raise ValueError("States are not mutually exclusive (duplicates found)")
-
-    # Convert binary strings to integers
-    converted = [[int(state, 2) for state in state_group] for state_group in state_groups]
-    
-    # Sort each sublist
-    sorted_states = [sorted(sublist) for sublist in converted]
-    
-    return sorted_states

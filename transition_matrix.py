@@ -51,7 +51,7 @@ def check_stg(stg: nx.DiGraph) -> None:
         if stg.out_degree(state) > N:
             raise ValueError("The number of outgoing transitions for each state must be less than or equal to N.")
 
-def check_transition_matrix(transition_matrix: np.ndarray, compressed: bool=False) -> None:
+def check_transition_matrix(transition_matrix: np.ndarray, compressed: bool=False, partial: bool=False) -> None:
     """
     Validate the structure and properties of a transition matrix.
 
@@ -75,19 +75,20 @@ def check_transition_matrix(transition_matrix: np.ndarray, compressed: bool=Fals
     - If `compressed` is False, the number of rows/columns should be 2^N.
     """
 
-    # Check that the matrix is square
-    if transition_matrix.shape[0] != transition_matrix.shape[1]:
-        raise ValueError("The matrix must be square.")
-
     # Check that the elements of the array are between 0 and 1, with some tolerance
     if not np.all(transition_matrix >= 0 - 1e-16) or not np.all(transition_matrix <= 1 + 1e-16):
         raise ValueError("All elements of the matrix must be between 0 and 1. Max: {}, Min: {}".format(np.max(transition_matrix), np.min(transition_matrix)))
 
-    # Check that every row of the matrix sums to 1
-    if not np.allclose(np.sum(transition_matrix, axis=1), np.ones(transition_matrix.shape[1])):
-        raise ValueError("Every row of the matrix must sum to 1.")
+    if not partial:
+        # Check that the matrix is square
+        if transition_matrix.shape[0] != transition_matrix.shape[1]:
+            raise ValueError("The matrix must be square.")
 
-    if not compressed:
+        # Check that every row of the matrix sums to 1
+        if not np.allclose(np.sum(transition_matrix, axis=1), np.ones(transition_matrix.shape[1])):
+            raise ValueError("Every row of the matrix must sum to 1.")
+
+    if not compressed and not partial:
         # Check if the length of the matrix is 2^N
         N = int(np.log2(transition_matrix.shape[0]))
         if 2**N != transition_matrix.shape[0]:

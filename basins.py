@@ -1,9 +1,8 @@
 import numpy as np
-import networkx as nx
 
-from transition_matrix import get_stg
-from scc_dags import get_scc_dag, get_attractor_states
 from matrix_operations import nsquare, expand_matrix
+from transition_matrix import check_transition_matrix
+
 
 def get_strong_basins(
     transition_matrix: np.ndarray,
@@ -52,11 +51,7 @@ def get_strong_basins(
         T_inf = expand_matrix(T_inf, group_indices, DEBUG=DEBUG)
 
     if DEBUG:
-        # Check that the given matrix is a transition matrix of size 2**N
-        if T_inf.shape[0] != T_inf.shape[1]:
-            raise ValueError("The matrix must be a square matrix.")
-        if T_inf.shape[0] != 2 ** int(np.log2(T_inf.shape[0])):
-            raise ValueError("The matrix must be a transition matrix of size 2**N.")
+        check_transition_matrix(T_inf)
 
         # Check that the attractor indices are valid
         for attractor in attractor_indices:
