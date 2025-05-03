@@ -5,152 +5,41 @@ from transition_matrix import check_transition_matrix
 
 
 def get_strong_basins(
-    transition_matrix: np.ndarray,
-    attractor_indices: list[list[int]],
-    grouped: bool = False,
-    group_indices: list[list[int]] = None,
-    exclude_attractors: bool = False,
+    convergence_matrix: np.ndarray,
     DEBUG: bool = False,
 ) -> np.ndarray:
     """
-    Compute the strong basin of a transition matrix.
+    Compute whether the transient states belong to a strong basin.
 
     Parameters
     ----------
-    transition_matrix : numpy array
-        The transition matrix of the Boolean network.
-    attractor_indices : list[list[int]]
-        The indices of the attractor states in the transition matrix.
-        The order of the attractors is used to assign the attractor number.
-    grouped : bool, optional
-        If True, the transition matrix is grouped.
-    group_indices : list[list[int]], optional
-        The group indices of the transition matrix.
-        If not given, the transition matrix is not grouped.
-    exclude_attractors : bool, optional
-        If True, the attractor states are excluded from the strong basin.
+    convergence_matrix : numpy array
+        A matrix that represents the probability of reaching each attractor from each transient state
     DEBUG : bool, optional
         If True, performs additional checks on the input data.
 
     Returns
     -------
-    strong_basins : numpy array, shape (2^N, 1)
-        The strong basin of each state in the transition matrix.
-        The value at each row is the attractor number of the strong basin that the state is in.
-        If the state is not in a strong basin, the value is -1.
-        If the state is part of an attractor, the value is -2.
+    strong_basins : numpy array, shape (number of transient states, 1)
+        If the state is in a strong basin, the value is 1.
+        If the state is in a weak basin instead, the value is 0.
+
+    Notes
+    -----
+    The order of the transient states follow the order of states in the convergence matrix.
     """
-    if DEBUG:
-        if grouped and group_indices == None:
-            raise ValueError("If grouped is True, group_indices must be given.")
-
-    # get the basins
-    T_inf = nsquare(transition_matrix, 20, DEBUG=DEBUG)
-
-    if grouped:
-        T_inf = expand_matrix(T_inf, group_indices, DEBUG=DEBUG)
 
     if DEBUG:
-        check_transition_matrix(T_inf)
+        check_transition_matrix(convergence_matrix, partial=True)
 
-        # Check that the attractor indices are valid
-        for attractor in attractor_indices:
-            for state in attractor:
-                if 0 > state or state >= T_inf.shape[0]:
-                    raise ValueError("The attractor indices must be valid.")
-
-        # Check that the attractor indices are mutually exclusive
-        for i in range(len(attractor_indices)):
-            for j in range(i + 1, len(attractor_indices)):
-                if set(attractor_indices[i]).intersection(set(attractor_indices[j])):
-                    raise ValueError("The attractor indices must be mutually exclusive.")
-
-    if exclude_attractors:
-        all_attractor_states = []
-        for attractor in attractor_indices:
-            all_attractor_states.extend(attractor)
-
-    strong_basin = np.zeros((T_inf.shape[0], 1))
-    for row in range(T_inf.shape[0]):
-
-        if exclude_attractors and row in all_attractor_states:
-            strong_basin[row] = -2
-            continue
-
-        single = False
-        multiple = False
-        # iterate through each attractor
-        for i, attractor in enumerate(attractor_indices):
-            for state in attractor:
-                # the attractor can be reached
-                if T_inf[row, state] != 0:
-                    # This is the first attractor that can be reached
-                    if not single:
-                        single = True
-                        attractor_index = i
-                    # This is not the first attractor that can be reached
-                    else:
-                        single = False
-                        multiple = True
-                        attractor_index = -1
-                    break
-            if multiple:
-                break
-        strong_basin[row] = attractor_index
-        
-        if DEBUG:
-            if not single and not multiple:
-                raise ValueError(f"Must have at least one attractor for row {row}")
-            elif single and multiple:
-                raise ValueError(f"Row {row} has both a single attractor and multiple attractors")
+    strong_basin = np.zeros((convergence_matrix.shape[0], 1))
+    for row in range(convergence_matrix.shape[0]):
+        # if row has a single non-zero element
+        if np.count_nonzero(convergence_matrix[row]) == 1:
+            strong_basin[row] = 1
 
     return strong_basin
 
-
-def compare_strong_basins(
-    answer: np.ndarray, 
-    guess: np.ndarray, 
-    DEBUG: bool = False
-) -> tuple[int, int, int, int]:
-    """
-    Calculate the true positives, false positives, true negatives, and false negatives
-    between two matrices, `answer` and `guess`.
-
-    Parameters
-    ----------
-    answer : np.ndarray
-        The ground truth matrix.
-    guess : np.ndarray
-        The predicted matrix.
-    DEBUG : bool, optional
-        If True, perform basic checks.
-
-    Returns
-    -------
-    tuple of int
-        A tuple containing four integers: (TP, FP, TN, FN)
-        - TP: Number of true positives
-        - FP: Number of false positives
-        - TN: Number of true negatives
-        - FN: Number of false negatives
-    """
-
-    if DEBUG:
-        # Check that the matrices have the same shape
-        if answer.shape != guess.shape:
-            raise ValueError("The matrices must have the same shape.")
-
-    # Define the conditions for each category
-    TP = np.sum((answer != -2) & (guess != -1) & (answer == guess))  # True positives
-    FP = np.sum((answer != -2) & (guess != -1) & (answer != guess))  # False positives
-    TN = np.sum((answer != -2) & (guess == -1) & (answer == guess))  # True negatives
-    FN = np.sum((answer != -2) & (guess == -1) & (answer != guess))  # False negatives
-
-    if DEBUG:
-        if FP > 0:
-            raise ValueError("Markov chain should not have false positives.")
-
-    return TP, FP, TN, FN
 
 def get_basin_ratios(
     T_inf: np.ndarray,
@@ -202,6 +91,7 @@ def get_basin_ratios(
         attractor_ratio[tuple(attractor)] = state_prob[attractor].sum()
 
     return attractor_ratio
+
 
 def get_basin_ratios_rmsd(
     answer: dict[tuple, float],

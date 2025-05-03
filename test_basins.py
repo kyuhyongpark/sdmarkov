@@ -4,45 +4,26 @@ import numpy as np
 from pyboolnet.external.bnet2primes import bnet_text2primes
 from pyboolnet.state_transition_graphs import primes2stg
 
-from basins import get_strong_basins, compare_strong_basins, get_basin_ratios
+from basins import get_strong_basins, get_basin_ratios
 from transition_matrix import get_transition_matrix
 from grouping import sd_grouping, null_grouping
-from matrix_operations import nsquare, compress_matrix
+from matrix_operations import nsquare, compress_matrix, expand_matrix
+from reachability import get_convergence_matrix
+from scc_dags import get_scc_dag, get_ordered_states, get_attractor_states
+
 
 class TestGetStrongBasins(unittest.TestCase):
     def test_simple_transition_matrix(self):
-        transition_matrix = np.array([[0, 1], [1, 0]])
-        attractor_indices = [[0, 1]]
-        strong_basin = get_strong_basins(transition_matrix, attractor_indices)
-        expected_strong_basin = np.array([[0], [0]])
+        convergence_matrix = np.array([[1, 0], [0, 1]])
+        strong_basin = get_strong_basins(convergence_matrix)
+        expected_strong_basin = np.array([[1], [1]])
         self.assertTrue(np.allclose(strong_basin, expected_strong_basin))
-
-    def test_no_attractors(self):
-        transition_matrix = np.array([[0, 0], [0, 0]])
-        attractor_indices = [[0, 1]]
-        with self.assertRaises(ValueError):
-            get_strong_basins(transition_matrix, attractor_indices, DEBUG=True)
-
-    def test_wrong_attractors(self):
-        transition_matrix = np.array([[1, 0], [0, 1]])
-        attractor_indices = [[0]]
-        with self.assertRaises(ValueError):
-            get_strong_basins(transition_matrix, attractor_indices, DEBUG=True)
 
     def test_multiple_attractors(self):
-        transition_matrix = np.array([[1, 0], [0, 1]])
-        attractor_indices = [[0], [1]]
-        strong_basin = get_strong_basins(transition_matrix, attractor_indices)
+        convergence_matrix = np.array([[1/2, 1/2], [0, 1]])
+        strong_basin = get_strong_basins(convergence_matrix)
         expected_strong_basin = np.array([[0], [1]])
         self.assertTrue(np.allclose(strong_basin, expected_strong_basin))
-
-    def test_with_grouped_transition_matrix(self):
-        transition_matrix = np.array([[0, 1], [0, 1]])
-        attractor_indices = [[2]]
-        group_indices = [[0, 1]]
-        strong_basins = get_strong_basins(transition_matrix, attractor_indices, grouped=True, group_indices=group_indices)
-        expected_strong_basins = np.array([[0], [0], [0]])
-        np.testing.assert_array_equal(strong_basins, expected_strong_basins)
 
     def test_example(self):
         bnet = """
@@ -58,25 +39,26 @@ class TestGetStrongBasins(unittest.TestCase):
         primes = {key: primes[key] for key in sorted(primes)}
         stg = primes2stg(primes, update)
 
+        scc_dag = get_scc_dag(stg)
+        scc_indices = get_ordered_states(scc_dag, as_indices=True, DEBUG=True)
+        attractor_indices = get_attractor_states(scc_dag, as_indices=True, DEBUG=True)
+
         transition_matrix = get_transition_matrix(stg, update=update)
-        attractor_indices = [[0, 1, 2], [3], [8, 10]]
-        strong_basin = get_strong_basins(transition_matrix, attractor_indices, DEBUG=True)
-        expected_strong_basin = np.array([[ 0],
-                                          [ 0],
-                                          [ 0],
-                                          [ 1],
-                                          [-1],
-                                          [-1],
-                                          [-1],
-                                          [-1],
-                                          [ 2],
-                                          [ 2],
-                                          [ 2],
-                                          [ 2],
-                                          [ 2],
-                                          [ 2],
-                                          [ 2],
-                                          [ 2]])
+        T_inf = nsquare(transition_matrix, 20, DEBUG=True)
+
+        convergence_matrix, _, _ = get_convergence_matrix(T_inf, scc_indices, attractor_indices, DEBUG=True)
+
+        strong_basin = get_strong_basins(convergence_matrix, DEBUG=True)
+        expected_strong_basin = np.array([[1],
+                                          [0],
+                                          [0],
+                                          [1],
+                                          [1],
+                                          [0],
+                                          [0],
+                                          [1],
+                                          [1],
+                                          [1]])
 
         self.assertTrue(np.allclose(strong_basin, expected_strong_basin))
 
@@ -93,29 +75,30 @@ class TestGetStrongBasins(unittest.TestCase):
         primes = bnet_text2primes(bnet)
         primes = {key: primes[key] for key in sorted(primes)}
         stg = primes2stg(primes, update)
-
-        null_group = null_grouping(bnet)
+        scc_dag = get_scc_dag(stg)
+        scc_indices = get_ordered_states(scc_dag, as_indices=True, DEBUG=True)
+        attractor_indices = get_attractor_states(scc_dag, as_indices=True, DEBUG=True)
 
         transition_matrix = get_transition_matrix(stg, update=update)
+        null_group = null_grouping(bnet)
         null_matrix = compress_matrix(transition_matrix, null_group)
-        attractor_indices = [[0, 1, 2], [3], [8, 10]]
-        strong_basin = get_strong_basins(null_matrix, attractor_indices, grouped=True, group_indices=null_group, DEBUG=True)
-        expected_strong_basin = np.array([[-1],
-                                          [-1],
-                                          [-1],
-                                          [ 1],
-                                          [-1],
-                                          [-1],
-                                          [-1],
-                                          [-1],
-                                          [ 2],
-                                          [-1],
-                                          [ 2],
-                                          [-1],
-                                          [-1],
-                                          [-1],
-                                          [-1],
-                                          [-1]])
+
+        null_inf = nsquare(null_matrix, 20, DEBUG=True)
+        null_inf_expanded = expand_matrix(null_inf, null_group)
+
+        convergence_matrix, _, _ = get_convergence_matrix(null_inf_expanded, scc_indices, attractor_indices, DEBUG=True)
+
+        strong_basin = get_strong_basins(convergence_matrix, DEBUG=True)
+        expected_strong_basin = np.array([[0],
+                                          [0],
+                                          [0],
+                                          [0],
+                                          [0],
+                                          [0],
+                                          [0],
+                                          [0],
+                                          [0],
+                                          [0]])
 
         self.assertTrue(np.allclose(strong_basin, expected_strong_basin))
 
@@ -132,98 +115,32 @@ class TestGetStrongBasins(unittest.TestCase):
         primes = bnet_text2primes(bnet)
         primes = {key: primes[key] for key in sorted(primes)}
         stg = primes2stg(primes, update)
+        scc_dag = get_scc_dag(stg)
+        scc_indices = get_ordered_states(scc_dag, as_indices=True, DEBUG=True)
+        attractor_indices = get_attractor_states(scc_dag, as_indices=True, DEBUG=True)
 
+        transition_matrix = get_transition_matrix(stg, update=update)
         sd_group = sd_grouping(bnet)
-
-        transition_matrix = get_transition_matrix(stg, update=update)
         sd_matrix = compress_matrix(transition_matrix, sd_group)
-        attractor_indices = [[0, 1, 2], [3], [8, 10]]
-        strong_basin = get_strong_basins(sd_matrix, attractor_indices, grouped=True, group_indices=sd_group, DEBUG=True)
-        expected_strong_basin = np.array([[ 0],
-                                          [ 0],
-                                          [ 0],
-                                          [ 1],
-                                          [-1],
-                                          [-1],
-                                          [-1],
-                                          [-1],
-                                          [ 2],
-                                          [ 2],
-                                          [ 2],
-                                          [ 2],
-                                          [ 2],
-                                          [ 2],
-                                          [ 2],
-                                          [ 2]])
+
+        sd_inf = nsquare(sd_matrix, 20, DEBUG=True)
+        sd_inf_expanded = expand_matrix(sd_inf, sd_group)
+
+        convergence_matrix, _, _ = get_convergence_matrix(sd_inf_expanded, scc_indices, attractor_indices, DEBUG=True)
+
+        strong_basin = get_strong_basins(convergence_matrix, DEBUG=True)
+        expected_strong_basin = np.array([[1],
+                                          [0],
+                                          [0],
+                                          [1],
+                                          [1],
+                                          [0],
+                                          [0],
+                                          [1],
+                                          [1],
+                                          [1]])
 
         self.assertTrue(np.allclose(strong_basin, expected_strong_basin))
-
-    def test_example_with_excluded_attractors(self):
-        bnet = """
-        A, A | B & C
-        B, B & !C
-        C, B & !C | !C & !D | !B & C & D
-        D, !A & !B & !C & !D | !A & C & D
-        """
-
-        update = "asynchronous"
-
-        primes = bnet_text2primes(bnet)
-        primes = {key: primes[key] for key in sorted(primes)}
-        stg = primes2stg(primes, update)
-
-        transition_matrix = get_transition_matrix(stg, update=update)
-        attractor_indices = [[0, 1, 2], [3], [8, 10]]
-        strong_basin = get_strong_basins(transition_matrix, attractor_indices, exclude_attractors=True, DEBUG=True)
-        expected_strong_basin = np.array([[-2],
-                                          [-2],
-                                          [-2],
-                                          [-2],
-                                          [-1],
-                                          [-1],
-                                          [-1],
-                                          [-1],
-                                          [-2],
-                                          [ 2],
-                                          [-2],
-                                          [ 2],
-                                          [ 2],
-                                          [ 2],
-                                          [ 2],
-                                          [ 2]])
-
-        self.assertTrue(np.allclose(strong_basin, expected_strong_basin))
-
-class TestCompareStrongBasins(unittest.TestCase):
-    def test_same_shape_no_errors(self):
-        answer = np.array([[1], [1], [1], [1]])
-        guess = np.array([[1], [1], [1], [1]])
-        TP, FP, TN, FN = compare_strong_basins(answer, guess)
-        self.assertEqual(TP, 4)
-        self.assertEqual(FP, 0)
-        self.assertEqual(TN, 0)
-        self.assertEqual(FN, 0)
-
-    def test_same_shape_with_errors(self):
-        answer = np.array([[1], [1], [1], [1]])
-        guess = np.array([[1], [1], [1], [-1]])
-        TP, FP, TN, FN = compare_strong_basins(answer, guess, DEBUG=True)
-        self.assertEqual(TP, 3)
-        self.assertEqual(FP, 0)
-        self.assertEqual(TN, 0)
-        self.assertEqual(FN, 1)
-
-    def test_different_shape(self):
-        answer = np.array([[1], [1], [1], [1]])
-        guess = np.array([[1], [1], [1]])
-        with self.assertRaises(ValueError):
-            compare_strong_basins(answer, guess, DEBUG=True)
-
-    def test_false_positives(self):
-        answer = np.array([[-1], [-1], [-1], [-1]])
-        guess = np.array([[1], [1], [1], [1]])
-        with self.assertRaises(ValueError):
-            compare_strong_basins(answer, guess, DEBUG=True)
 
 
 class TestGetBasinRatios(unittest.TestCase):
