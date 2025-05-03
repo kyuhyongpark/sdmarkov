@@ -409,6 +409,73 @@ def get_dkl(A: np.ndarray, B: np.ndarray, compressed: bool = False, partial: boo
     return total_dkl
 
 
+def get_confusion_matrix(
+    answer: np.ndarray,
+    guess: np.ndarray,
+    compressed: bool = False,
+    partial: bool = False,
+    DEBUG: bool = False
+) -> tuple[int, int, int, int]:
+    """
+    Calculate the true positives, false positives, true negatives, and false negatives
+    between two matrices, `answer` and `guess`.
+
+    Parameters
+    ----------
+    answer : np.ndarray
+        The ground truth matrix.
+    guess : np.ndarray
+        The predicted matrix.
+    compressed : bool, optional
+        If True, the matrices are compressed,
+        and the number of rows/columns don't need to be 2^N.
+    partial : bool, optional
+        If True, the matrices are partial,
+        and number of rows/columns don't need to be 2^N,
+        the matrixes don't need to be square,
+        and each row doesn't need to sum to 1.
+    DEBUG : bool, optional
+        If True, perform basic checks.
+
+    Returns
+    -------
+    tuple
+        A tuple containing four integers: (TP, FP, TN, FN)
+        - TP: Number of true positives
+        - FP: Number of false positives
+        - TN: Number of true negatives
+        - FN: Number of false negatives
+
+    Examples
+    --------
+    >>> answer = np.array([[1, 0], [0, 1]])
+    >>> guess = np.array([[1, 0], [1/2, 1/2]])
+    >>> get_confusion_matrix(answer, guess)
+    (2, 1, 1, 0)
+    """
+
+    if DEBUG:
+        # Check that the matrices have the same shape
+        if answer.shape != guess.shape:
+            raise ValueError("The matrices must have the same shape.")
+
+        check_transition_matrix(answer, compressed, partial)
+        check_transition_matrix(guess, compressed, partial)
+
+    # Define the conditions for each category
+    TP = np.sum((answer != 0) & (guess != 0))  # True positives
+    FP = np.sum((answer == 0) & (guess != 0))  # False positives
+    TN = np.sum((answer == 0) & (guess == 0))  # True negatives
+    FN = np.sum((answer != 0) & (guess == 0))  # False negatives
+
+    if DEBUG:
+        # Check that the sum of TP, FP, TN, and FN is equal to the total number of elements
+        if TP + FP + TN + FN != answer.size:
+            raise ValueError("The sum of TP, FP, TN, and FN must be equal to the total number of elements.")
+
+    return TP, FP, TN, FN
+
+
 def get_reachability(answer, guess, get_type="all", scc_indices=None, attractor_states=None, DEBUG=False):
     """
     Calculate the true positives, false positives, true negatives, and false negatives

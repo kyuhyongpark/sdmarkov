@@ -75,6 +75,10 @@ def check_transition_matrix(transition_matrix: np.ndarray, compressed: bool=Fals
     - If `compressed` is False, the number of rows/columns should be 2^N.
     """
 
+    # Check if all elements of the matrix are numeric
+    if not np.issubdtype(transition_matrix.dtype, np.number):
+        raise ValueError("All elements of the matrix must be numeric.")
+
     # Check that the elements of the array are between 0 and 1, with some tolerance
     if not np.all(transition_matrix >= 0 - 1e-16) or not np.all(transition_matrix <= 1 + 1e-16):
         raise ValueError("All elements of the matrix must be between 0 and 1. Max: {}, Min: {}".format(np.max(transition_matrix), np.min(transition_matrix)))

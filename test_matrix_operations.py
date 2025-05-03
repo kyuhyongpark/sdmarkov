@@ -7,6 +7,7 @@ from matrix_operations import compress_matrix
 from matrix_operations import expand_matrix
 from matrix_operations import get_rms_diff
 from matrix_operations import get_dkl
+from matrix_operations import get_confusion_matrix
 from matrix_operations import get_reachability
 from matrix_operations import is_block_triangular
 from matrix_operations import get_block_triangular
@@ -315,6 +316,44 @@ class TestGetDKL(unittest.TestCase):
         B = np.array([[1, 0], [1/2, 1/3]])
         with self.assertRaises(ValueError):
             get_dkl(A, B, DEBUG=True)
+
+
+class TestGetConfusionMatrix(unittest.TestCase):
+    def test_identical_matrices(self):
+        answer = np.array([[1, 0], [0, 1]])
+        guess = np.array([[1, 0], [0, 1]])
+        expected = (2, 0, 2, 0)
+        self.assertEqual(get_confusion_matrix(answer, guess), expected)
+    def test_different_matrices(self):
+        answer = np.array([[1, 0], [0, 1]])
+        guess = np.array([[1, 0], [1/2, 1/2]])
+        expected = (2, 1, 1, 0)
+        self.assertEqual(get_confusion_matrix(answer, guess), expected)
+    def test_compressed_matrices(self):
+        answer = np.array([[1, 0], [0, 1]])
+        guess = np.array([[1, 0], [1/2, 1/2]])
+        expected = (2, 1, 1, 0)
+        self.assertEqual(get_confusion_matrix(answer, guess, compressed=True), expected)
+    def test_partial_matrices(self):
+        answer = np.array([[1, 0], [0, 1]])
+        guess = np.array([[1, 0], [1/2, 1/2]])
+        expected = (2, 1, 1, 0)
+        self.assertEqual(get_confusion_matrix(answer, guess, partial=True), expected)
+    def test_debug_mode(self):
+        answer = np.array([[1, 0], [0, 1]])
+        guess = np.array([[1, 0], [1/2, 1/2]])
+        expected = (2, 1, 1, 0)
+        self.assertEqual(get_confusion_matrix(answer, guess, DEBUG=True), expected)
+    def test_different_shapes(self):
+        answer = np.array([[1, 0], [0, 1]])
+        guess = np.array([[1, 0, 0], [0, 1, 0]])
+        with self.assertRaises(ValueError):
+            get_confusion_matrix(answer, guess)
+    def test_non_numeric_values(self):
+        answer = np.array([[1, 0], [0, 1]])
+        guess = np.array([[1, 'a'], [0, 1]])
+        with self.assertRaises(ValueError):
+            get_confusion_matrix(answer, guess, DEBUG=True)
 
 
 class TestGetReachability(unittest.TestCase):
