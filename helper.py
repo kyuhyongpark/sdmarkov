@@ -67,7 +67,7 @@ def indices_to_states(index_groups: list[list[int]], N: int, DEBUG: bool = False
             raise ValueError(f"N must be an integer: {N=}")
 
         # Check if N is large enough
-        largest_index = max([max(index_group) for index_group in index_groups])
+        largest_index = max([max(index_group) for index_group in index_groups if index_group])
         if largest_index >= 2**N:
             raise ValueError("N is too small")
 

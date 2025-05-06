@@ -1,7 +1,9 @@
 import numpy as np
 
-from transition_matrix import get_stg, check_transition_matrix, get_hamming_distance_matrix
+from graph import get_stg
+from transition_matrix import check_transition_matrix, get_hamming_distance_matrix
 from scc_dags import get_scc_dag, get_scc_states
+
 
 def reorder_matrix(matrix: np.ndarray, index_list: list[int]) -> np.ndarray:
     """

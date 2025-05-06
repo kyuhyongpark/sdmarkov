@@ -3,16 +3,12 @@ import unittest
 import numpy as np
 
 from matrix_operations import reorder_matrix
-from matrix_operations import compress_matrix
-from matrix_operations import expand_matrix
-from matrix_operations import get_rms_diff
-from matrix_operations import get_dkl
-from matrix_operations import get_confusion_matrix
+from matrix_operations import compress_matrix, expand_matrix
+from matrix_operations import get_rms_diff, get_dkl, get_confusion_matrix
 from matrix_operations import get_reachability
-from matrix_operations import is_block_triangular
-from matrix_operations import get_block_triangular
+from matrix_operations import is_block_triangular, get_block_triangular
 from matrix_operations import enforce_asynchronous
-from transition_matrix import get_stg
+from graph import get_stg
 from scc_dags import get_scc_dag
 
 class TestReorderMatrix(unittest.TestCase):

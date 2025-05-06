@@ -1,7 +1,7 @@
 import numpy as np
 import networkx as nx
 
-from transition_matrix import get_stg
+from graph import get_stg
 from scc_dags import get_scc_dag, get_attractor_states
 from matrix_operations import nsquare
 
