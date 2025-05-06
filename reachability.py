@@ -4,6 +4,7 @@ from transition_matrix import check_transition_matrix
 from matrix_operations import get_block_triangular
 from helper import indices_to_states
 
+
 def get_convergence_matrix(
     T_inf: np.ndarray, 
     scc_indices: list[list[int]], 
@@ -125,3 +126,5 @@ def get_convergence_matrix(
             raise ValueError("The number of attractor states does not match the number of columns in the convergence matrix.")
 
     return convergence_matrix, transient_states, attractor_states
+
+

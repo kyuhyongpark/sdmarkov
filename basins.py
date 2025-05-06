@@ -1,7 +1,7 @@
 import numpy as np
 
-from matrix_operations import nsquare, expand_matrix
 from transition_matrix import check_transition_matrix
+from helper import indices_to_states
 
 
 def get_strong_basins(
@@ -45,7 +45,7 @@ def get_basin_ratios(
     T_inf: np.ndarray,
     attractor_indices: list[list[int]],
     DEBUG: bool = False,
-) -> dict:
+) -> tuple[np.ndarray, list[list[str]]]:
     """
     Calculate the ratio of the size of each basin to the total number of states.
 
@@ -61,16 +61,16 @@ def get_basin_ratios(
 
     Returns
     -------
-    basin_ratios : dict
-        A dictionary mapping each attractor to the ratio of the size of its basin to the total number of states.
+    attractor_ratio : 2D numpy array
+        The probability of reaching each attractor.
+        Note that it is 2D for compatibility with other functions.
+        Each row must sum to 1.
+    attractor_states : list[list[str]]
+        The states of each attractor.
     """
 
     if DEBUG:
-        # Check that the given matrix is a transition matrix of size 2**N
-        if T_inf.shape[0] != T_inf.shape[1]:
-            raise ValueError("The matrix must be a square matrix.")
-        if T_inf.shape[0] != 2 ** int(np.log2(T_inf.shape[0])):
-            raise ValueError("The matrix must be a transition matrix of size 2**N.")
+        check_transition_matrix(T_inf)
 
         # Check that the attractor indices are valid
         for attractor in attractor_indices:
@@ -84,51 +84,21 @@ def get_basin_ratios(
                 if set(attractor_indices[i]).intersection(set(attractor_indices[j])):
                     raise ValueError("The attractor indices must be mutually exclusive.")
 
+    N = int(np.log2(T_inf.shape[0]))
+
+    # Get the attractor states
+    attractor_states = indices_to_states(attractor_indices, N, DEBUG=DEBUG)
+
     state_prob = np.mean(T_inf, axis=0)
 
-    attractor_ratio = {}
-    for attractor in attractor_indices:
-        attractor_ratio[tuple(attractor)] = state_prob[attractor].sum()
+    attractor_ratio = np.zeros((1, len(attractor_indices)))
+    for i, attractor in enumerate(attractor_indices):
+        attractor_ratio[0][i] = state_prob[attractor].sum()
 
-    return attractor_ratio
+    # Normalize the basin ratios
+    attractor_ratio /= attractor_ratio.sum()
 
-
-def get_basin_ratios_rmsd(
-    answer: dict[tuple, float],
-    guess: dict[tuple, float],
-    DEBUG: bool = False,
-) -> float:
-    """
-    Calculate the root mean squared difference between the basin ratios in two dictionaries.
-
-    Parameters
-    ----------
-    answer : dict[tuple, float]
-        The ground truth basin ratios.
-    guess : dict[tuple, float]
-        The predicted basin ratios.
-    DEBUG : bool, optional
-        If True, performs additional checks.
-
-    Returns
-    -------
-    rmsd : float
-        The root mean squared difference between the two dictionaries.
-    """
-    if DEBUG:
-        # Check that the keys are the same
-        if set(answer.keys()) != set(guess.keys()):
-            raise ValueError("The keys must be the same.")
-        
-        # Check that the keys are in the same order
-        if list(answer.keys()) != list(guess.keys()):
-            # If the keys are not in the same order, sort them
-            answer = {k: answer[k] for k in sorted(answer)}
-            guess = {k: guess[k] for k in sorted(guess)}
-    
-    rmsd = np.sqrt(np.mean((np.array(list(answer.values())) - np.array(list(guess.values())))**2))
-
-    return rmsd
+    return attractor_ratio, attractor_states
 
 
 # def get_node_average_values(

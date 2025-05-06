@@ -9,7 +9,7 @@ from transition_matrix import get_transition_matrix
 from grouping import sd_grouping, null_grouping
 from matrix_operations import nsquare, compress_matrix, expand_matrix
 from reachability import get_convergence_matrix
-from scc_dags import get_scc_dag, get_ordered_states, get_attractor_states
+from scc_dags import get_scc_dag, get_scc_states, get_attractor_states
 
 
 class TestGetStrongBasins(unittest.TestCase):
@@ -40,7 +40,7 @@ class TestGetStrongBasins(unittest.TestCase):
         stg = primes2stg(primes, update)
 
         scc_dag = get_scc_dag(stg)
-        scc_indices = get_ordered_states(scc_dag, as_indices=True, DEBUG=True)
+        scc_indices = get_scc_states(scc_dag, as_indices=True, DEBUG=True)
         attractor_indices = get_attractor_states(scc_dag, as_indices=True, DEBUG=True)
 
         transition_matrix = get_transition_matrix(stg, update=update)
@@ -76,7 +76,7 @@ class TestGetStrongBasins(unittest.TestCase):
         primes = {key: primes[key] for key in sorted(primes)}
         stg = primes2stg(primes, update)
         scc_dag = get_scc_dag(stg)
-        scc_indices = get_ordered_states(scc_dag, as_indices=True, DEBUG=True)
+        scc_indices = get_scc_states(scc_dag, as_indices=True, DEBUG=True)
         attractor_indices = get_attractor_states(scc_dag, as_indices=True, DEBUG=True)
 
         transition_matrix = get_transition_matrix(stg, update=update)
@@ -116,7 +116,7 @@ class TestGetStrongBasins(unittest.TestCase):
         primes = {key: primes[key] for key in sorted(primes)}
         stg = primes2stg(primes, update)
         scc_dag = get_scc_dag(stg)
-        scc_indices = get_ordered_states(scc_dag, as_indices=True, DEBUG=True)
+        scc_indices = get_scc_states(scc_dag, as_indices=True, DEBUG=True)
         attractor_indices = get_attractor_states(scc_dag, as_indices=True, DEBUG=True)
 
         transition_matrix = get_transition_matrix(stg, update=update)
@@ -147,23 +147,20 @@ class TestGetBasinRatios(unittest.TestCase):
     def test_simple_transition_matrix(self):
         T_inf = np.array([[0, 1], [0, 1]])
         attractor_indices = [[1]]
-        basin_ratios = get_basin_ratios(T_inf, attractor_indices)
-        expected_basin_ratios = {(1,):1}
-        self.assertEqual(basin_ratios, expected_basin_ratios)
-
-    def test_with_attractor_indices(self):
-        T_inf = np.array([[0, 1], [0, 1]])
-        attractor_indices = [[1]]
-        basin_ratios = get_basin_ratios(T_inf, attractor_indices)
-        expected_basin_ratios = {(1,):1}
-        self.assertEqual(basin_ratios, expected_basin_ratios)
+        basin_ratios, attractor_states = get_basin_ratios(T_inf, attractor_indices)
+        expected_basin_ratios = np.array([[1]])
+        expected_attractor_states = [["1"]]
+        self.assertTrue(np.allclose(basin_ratios, expected_basin_ratios))
+        self.assertEqual(attractor_states, expected_attractor_states)
 
     def test_with_debug(self):
         T_inf = np.array([[0, 1], [0, 1]])
         attractor_indices = [[1]]
-        basin_ratios = get_basin_ratios(T_inf, attractor_indices, DEBUG=True)
-        expected_basin_ratios = {(1,):1}
-        self.assertEqual(basin_ratios, expected_basin_ratios)
+        basin_ratios, attractor_states = get_basin_ratios(T_inf, attractor_indices, DEBUG=True)
+        expected_basin_ratios = np.array([[1]])
+        expected_attractor_states = [["1"]]
+        self.assertTrue(np.allclose(basin_ratios, expected_basin_ratios))
+        self.assertEqual(attractor_states, expected_attractor_states)
 
     def test_example(self):
         bnet = """
@@ -178,13 +175,17 @@ class TestGetBasinRatios(unittest.TestCase):
         primes = bnet_text2primes(bnet)
         primes = {key: primes[key] for key in sorted(primes)}
         stg = primes2stg(primes, update)
+        scc_dag = get_scc_dag(stg)
+        attractor_indices = get_attractor_states(scc_dag, as_indices=True, DEBUG=True)
+        transition_matrix = get_transition_matrix(stg, update=update, DEBUG=True)
+        T_inf = nsquare(transition_matrix, 20, DEBUG=True)
 
-        transition_matrix = get_transition_matrix(stg, update=update)
-        T_inf = nsquare(transition_matrix, 20)
+        basin_ratios, attractor_states = get_basin_ratios(T_inf, attractor_indices, DEBUG=True)
+        expected_basin_ratios = np.array([[0.275, 0.1, 0.625]])
+        expected_attractor_states = [["0000", "0001", "0010"], ["0011"], ["1000", "1010"]]
+        self.assertTrue(np.allclose(basin_ratios, expected_basin_ratios))
+        self.assertEqual(attractor_states, expected_attractor_states)
 
-        basin_ratios = get_basin_ratios(T_inf, attractor_indices=[[8, 10], [3], [0, 1, 2]])
-        expected_basin_ratios = {(8, 10): 0.625, (3,): 0.1, (0, 1, 2): 0.275}
-        self.assertTrue(np.allclose(list(basin_ratios.values()), list(expected_basin_ratios.values())))
 
 if __name__ == '__main__':
     unittest.main()

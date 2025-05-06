@@ -1,7 +1,7 @@
 import numpy as np
 
 from transition_matrix import get_stg, check_transition_matrix, get_hamming_distance_matrix
-from scc_dags import get_scc_dag, get_ordered_states
+from scc_dags import get_scc_dag, get_scc_states
 
 def reorder_matrix(matrix: np.ndarray, index_list: list[int]) -> np.ndarray:
     """
@@ -384,6 +384,10 @@ def get_dkl(A: np.ndarray, B: np.ndarray, compressed: bool = False, partial: boo
         if A.shape != B.shape:
             raise ValueError("The matrices must have the same shape.")
 
+        # The dimension of the matricies should be 2
+        if A.ndim != 2:
+            raise ValueError("The matrices must be 2-dimensional.")
+
         check_transition_matrix(A, compressed, partial)
         check_transition_matrix(B, compressed, partial)
 
@@ -674,7 +678,7 @@ def get_block_triangular(transition_matrix, scc_indices=None, scc_dag=None, stg=
 
     # Starting from the scc dag
     if scc_dag != None and scc_indices == None:
-        scc_indices = get_ordered_states(scc_dag, as_indices=True)
+        scc_indices = get_scc_states(scc_dag, as_indices=True)
         if DEBUG:
             print("Calculated scc_indices", scc_indices)
 

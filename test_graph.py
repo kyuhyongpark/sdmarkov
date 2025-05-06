@@ -1,0 +1,82 @@
+import unittest
+
+import networkx as nx
+import numpy as np
+
+from graph import get_markov_chain
+
+
+class TestGetMarkovChain(unittest.TestCase):
+    def test_empty_compressed_transition_matrix(self):
+        compressed_transition_matrix = np.array([])
+        group_indices = []
+        result = get_markov_chain(compressed_transition_matrix, group_indices)
+        self.assertIsInstance(result, nx.DiGraph)
+        self.assertEqual(len(result.nodes), 0)
+        self.assertEqual(len(result.edges), 0)
+
+    def test_non_square_compressed_transition_matrix_debug_true(self):
+        compressed_transition_matrix = np.array([[0.5, 0.5], [0.3, 0.7], [0.1, 0.9]])
+        group_indices = [[0, 1], [2]]
+        with self.assertRaises(ValueError):
+            get_markov_chain(compressed_transition_matrix, group_indices, DEBUG=True)
+
+    def test_compressed_transition_matrix_elements_outside_range_debug_true(self):
+        compressed_transition_matrix = np.array([[0.5, 1.5], [0.3, 0.7]])
+        group_indices = [[0, 1], [2]]
+        with self.assertRaises(ValueError):
+            get_markov_chain(compressed_transition_matrix, group_indices, DEBUG=True)
+
+    def test_compressed_transition_matrix_rows_not_summing_to_one_debug_true(self):
+        compressed_transition_matrix = np.array([[0.5, 0.4], [0.3, 0.7]])
+        group_indices = [[0, 1], [2]]
+        with self.assertRaises(ValueError):
+            get_markov_chain(compressed_transition_matrix, group_indices, DEBUG=True)
+
+    def test_valid_compressed_transition_matrix_with_group_indices(self):
+        compressed_transition_matrix = np.array([[0.5, 0.5], [0.3, 0.7]])
+        group_indices = [[0, 1], [], [2, 3]]
+        result = get_markov_chain(compressed_transition_matrix, group_indices)
+        self.assertIsInstance(result, nx.DiGraph)
+        self.assertEqual(len(result.nodes), 2)
+        self.assertEqual(len(result.edges), 4)
+        self.assertEqual(list(result.nodes), ['G0', 'G2'])
+        self.assertEqual(list(result.edges), [('G0', 'G0'), ('G0', 'G2'), ('G2', 'G0'), ('G2', 'G2')])
+        self.assertEqual(result.nodes['G0']['indices'], [0, 1])
+        self.assertEqual(result.nodes['G0']['states'], ['00', '01'])
+        self.assertEqual(result.nodes['G2']['indices'], [2, 3])
+        self.assertEqual(result.nodes['G2']['states'], ['10', '11'])
+        self.assertEqual(result.edges[('G0', 'G0')]['weight'], 0.5)
+        self.assertEqual(result.edges[('G0', 'G2')]['weight'], 0.5)
+        self.assertEqual(result.edges[('G2', 'G0')]['weight'], 0.3)
+        self.assertEqual(result.edges[('G2', 'G2')]['weight'], 0.7)
+
+    def test_valid_compressed_transition_matrix_with_empty_group_indices(self):
+        compressed_transition_matrix = np.array([[0.5, 0.5], [0.3, 0.7]])
+        group_indices = []
+        with self.assertRaises(ValueError):
+            get_markov_chain(compressed_transition_matrix, group_indices, DEBUG=True)
+
+    def test_example(self):
+        compressed_transition_matrix = np.array([[0.75 , 0.062, 0.062, 0.062, 0.   , 0.062, 0.   ],
+                                                 [0.   , 1.   , 0.   , 0.   , 0.   , 0.   , 0.   ],
+                                                 [0.   , 0.   , 1.   , 0.   , 0.   , 0.   , 0.   ],
+                                                 [0.   , 0.   , 0.   , 0.875, 0.125, 0.   , 0.   ],
+                                                 [0.   , 0.   , 0.   , 0.   , 1.   , 0.   , 0.   ],
+                                                 [0.   , 0.   , 0.   , 0.25 , 0.   , 0.625, 0.125],
+                                                 [0.   , 0.   , 0.   , 0.   , 0.25 , 0.   , 0.75 ]])
+        group_indices = [[4, 5, 6, 7], [], [0, 1, 2], [3], [12, 14], [8, 10], [13, 15], [9, 11]]
+        result = get_markov_chain(compressed_transition_matrix, group_indices)
+        self.assertIsInstance(result, nx.DiGraph)
+        self.assertEqual(sorted(list(result.nodes)), sorted(['G0', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7']))
+        self.assertEqual(sorted(list(result.edges)), sorted([('G0', 'G0'), ('G0', 'G2'), ('G0', 'G3'), ('G0', 'G4'), ('G0', 'G6'),
+                                                             ('G2', 'G2'),
+                                                             ('G3', 'G3'),
+                                                             ('G4', 'G4'), ('G4', 'G5'),
+                                                             ('G5', 'G5'),
+                                                             ('G6', 'G4'), ('G6', 'G6'), ('G6', 'G7'),
+                                                             ('G7', 'G5'), ('G7', 'G7')]))
+
+
+if __name__ == '__main__':
+    unittest.main()
