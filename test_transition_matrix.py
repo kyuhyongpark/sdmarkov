@@ -5,7 +5,7 @@ import networkx as nx
 from pyboolnet.state_transition_graphs import primes2stg
 from pyboolnet.external.bnet2primes import bnet_text2primes
 
-from transition_matrix import check_stg, check_transition_matrix
+from transition_matrix import check_transition_matrix
 from transition_matrix import get_transition_matrix, get_hamming_distance_matrix, get_bitflip_matrix
 
 

@@ -4,6 +4,66 @@ from transition_matrix import check_transition_matrix
 from helper import indices_to_states
 
 
+def get_convergence_matrix(
+    T_inf_expanded: np.ndarray, 
+    attractor_indices: list[list[int]], 
+    DEBUG: bool = False
+) -> np.ndarray:
+    """
+    Compute the convergence matrix that represents the probability of reaching each attractor from each state.
+
+    Parameters
+    ----------
+    T_inf_expanded : np.ndarray
+        The transition matrix at t=inf. Note that this should be expanded to 2**N x 2**N.
+    attractor_indices : list of list of int
+        The indices of the attractor states.
+    DEBUG : bool, optional
+        If True, performs additional checks.
+
+    Returns
+    -------
+    convergence_matrix : np.ndarray
+        A matrix representing the probability of reaching each attractor from each state.
+    """
+
+    if DEBUG:
+        # Check that the given matrix is a transition matrix
+        check_transition_matrix(T_inf_expanded)
+    
+        # Check that the attractor indices are valid
+        for attractor in attractor_indices:
+            for state in attractor:
+                if 0 > state or state >= T_inf_expanded.shape[0]:
+                    raise ValueError("The attractor indices must be valid.")
+
+        # Check that the attractor indices are mutually exclusive
+        for i in range(len(attractor_indices)):
+            for j in range(i + 1, len(attractor_indices)):
+                if set(attractor_indices[i]).intersection(set(attractor_indices[j])):
+                    raise ValueError("The attractor indices must be mutually exclusive.")
+
+    summed_columns = []
+    for attractor in attractor_indices:
+        summed = T_inf_expanded[:, attractor].sum(axis=1, keepdims=True)
+        summed_columns.append(summed)
+
+    convergence_matrix = np.hstack(summed_columns, dtype=np.float64)
+
+    # Normalize the rows of the convergence matrix 
+    for i in range(convergence_matrix.shape[0]):
+        convergence_matrix[i, :] /= np.sum(convergence_matrix[i, :])
+
+
+    if DEBUG:
+        if convergence_matrix.shape[0] != len(T_inf_expanded):
+            raise ValueError("The number of states does not match the number of rows in the convergence matrix.")
+        if convergence_matrix.shape[1] != len(attractor_indices):
+            raise ValueError("The number of attractors does not match the number of columns in the convergence matrix.")
+
+    return convergence_matrix
+
+
 def get_strong_basins(
     convergence_matrix: np.ndarray,
     DEBUG: bool = False,

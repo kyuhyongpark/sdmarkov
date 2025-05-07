@@ -266,24 +266,29 @@ def get_identity_matrix(n: int) -> np.ndarray:
     return identity_matrix
 
 
-def get_uniform_matrix(n: int) -> np.ndarray:
+def get_uniform_matrix(n: int, m: int|None = None) -> np.ndarray:
     """
-    Generate a uniform matrix of size n x n.
+    Generate a uniform matrix of size n x m.
 
     Parameters
     ----------
     n : int
-        The size of the uniform matrix, which is a square matrix.
+        The number of rows in the uniform matrix.
+    m : int, optional
+        The number of columns in the uniform matrix. If not specified, defaults to n.
 
     Returns
     -------
     np.ndarray
-        An n x n matrix where all elements are equal to 1/n.
+        An n x m matrix where all elements are equal to 1/m.
 
     Notes
     -----
     A uniform matrix is a matrix where all elements have the same value, in this case 1/n.
     """
 
-    uniform_matrix: np.ndarray = np.ones((n, n))
+    if m is None:
+        m = n
+
+    uniform_matrix: np.ndarray = np.ones((n, m))
     return uniform_matrix / n
