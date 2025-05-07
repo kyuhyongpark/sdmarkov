@@ -69,26 +69,21 @@ def get_strong_basins(
     DEBUG: bool = False,
 ) -> np.ndarray:
     """
-    Compute whether the transient states belong to a strong basin.
+    Computes whether each state belong to a strong basin.
 
     Parameters
     ----------
     convergence_matrix : numpy array
-        A matrix that represents the probability of reaching each attractor from each transient state
+        A matrix that represents the probability of reaching each attractor from each state
     DEBUG : bool, optional
         If True, performs additional checks on the input data.
 
     Returns
     -------
-    strong_basins : numpy array, shape (number of transient states, 1)
+    strong_basins : numpy array, shape (2**N, 1)
         If the state is in a strong basin, the value is 1.
         If the state is in a weak basin instead, the value is 0.
-
-    Notes
-    -----
-    The order of the transient states follow the order of states in the convergence matrix.
     """
-
     if DEBUG:
         check_transition_matrix(convergence_matrix, partial=True)
 

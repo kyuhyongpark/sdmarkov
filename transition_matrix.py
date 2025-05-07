@@ -291,4 +291,4 @@ def get_uniform_matrix(n: int, m: int|None = None) -> np.ndarray:
         m = n
 
     uniform_matrix: np.ndarray = np.ones((n, m))
-    return uniform_matrix / n
+    return uniform_matrix / m

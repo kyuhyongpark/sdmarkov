@@ -8,7 +8,7 @@ from basins import get_convergence_matrix, get_strong_basins, get_basin_ratios
 from transition_matrix import get_transition_matrix
 from grouping import sd_grouping, null_grouping
 from matrix_operations import nsquare, compress_matrix, expand_matrix
-from scc_dags import get_scc_dag, get_scc_states, get_attractor_states
+from attractors import get_predicted_attractors
 
 
 class TestGetConvergenceMatrix(unittest.TestCase):
@@ -51,135 +51,148 @@ class TestGetConvergenceMatrix(unittest.TestCase):
             get_convergence_matrix(T_inf, attractor_indices, DEBUG=True)
 
 
-# class TestGetStrongBasins(unittest.TestCase):
-#     def test_simple_transition_matrix(self):
-#         convergence_matrix = np.array([[1, 0], [0, 1]])
-#         strong_basin = get_strong_basins(convergence_matrix)
-#         expected_strong_basin = np.array([[1], [1]])
-#         self.assertTrue(np.allclose(strong_basin, expected_strong_basin))
+class TestGetStrongBasins(unittest.TestCase):
+    def test_simple_transition_matrix(self):
+        convergence_matrix = np.array([[1, 0], [0, 1]])
+        strong_basin = get_strong_basins(convergence_matrix)
+        expected_strong_basin = np.array([[1], [1]])
+        self.assertTrue(np.allclose(strong_basin, expected_strong_basin))
 
-#     def test_multiple_attractors(self):
-#         convergence_matrix = np.array([[1/2, 1/2], [0, 1]])
-#         strong_basin = get_strong_basins(convergence_matrix)
-#         expected_strong_basin = np.array([[0], [1]])
-#         self.assertTrue(np.allclose(strong_basin, expected_strong_basin))
+    def test_multiple_attractors(self):
+        convergence_matrix = np.array([[1/2, 1/2], [0, 1]])
+        strong_basin = get_strong_basins(convergence_matrix)
+        expected_strong_basin = np.array([[0], [1]])
+        self.assertTrue(np.allclose(strong_basin, expected_strong_basin))
 
-#     def test_example(self):
-#         bnet = """
-#         A, A | B & C
-#         B, B & !C
-#         C, B & !C | !C & !D | !B & C & D
-#         D, !A & !B & !C & !D | !A & C & D
-#         """
+    def test_example(self):
+        bnet = """
+        A, A | B & C
+        B, B & !C
+        C, B & !C | !C & !D | !B & C & D
+        D, !A & !B & !C & !D | !A & C & D
+        """
 
-#         update = "asynchronous"
+        update = "asynchronous"
 
-#         primes = bnet_text2primes(bnet)
-#         primes = {key: primes[key] for key in sorted(primes)}
-#         stg = primes2stg(primes, update)
+        primes = bnet_text2primes(bnet)
+        primes = {key: primes[key] for key in sorted(primes)}
+        stg = primes2stg(primes, update)
 
-#         scc_dag = get_scc_dag(stg)
-#         scc_indices = get_scc_states(scc_dag, as_indices=True, DEBUG=True)
-#         attractor_indices = get_attractor_states(scc_dag, as_indices=True, DEBUG=True)
+        transition_matrix = get_transition_matrix(stg, update=update)
+        T_inf = nsquare(transition_matrix, 20, DEBUG=True)
+        attractor_indices = get_predicted_attractors(T_inf, as_indices=True, DEBUG=True)
 
-#         transition_matrix = get_transition_matrix(stg, update=update)
-#         T_inf = nsquare(transition_matrix, 20, DEBUG=True)
+        convergence_matrix = get_convergence_matrix(T_inf, attractor_indices, DEBUG=True)
 
-#         convergence_matrix, _, _ = get_convergence_matrix(T_inf, scc_indices, attractor_indices, DEBUG=True)
+        strong_basin = get_strong_basins(convergence_matrix, DEBUG=True)
+        expected_strong_basin = np.array([[1],
+                                          [1],
+                                          [1],
+                                          [1],
+                                          [0],
+                                          [0],
+                                          [0],
+                                          [0],
+                                          [1],
+                                          [1],
+                                          [1],
+                                          [1],
+                                          [1],
+                                          [1],
+                                          [1],
+                                          [1]])
 
-#         strong_basin = get_strong_basins(convergence_matrix, DEBUG=True)
-#         expected_strong_basin = np.array([[1],
-#                                           [0],
-#                                           [0],
-#                                           [1],
-#                                           [1],
-#                                           [0],
-#                                           [0],
-#                                           [1],
-#                                           [1],
-#                                           [1]])
+        self.assertTrue(np.allclose(strong_basin, expected_strong_basin))
 
-#         self.assertTrue(np.allclose(strong_basin, expected_strong_basin))
+    def test_null_example(self):
+        bnet = """
+        A, A | B & C
+        B, B & !C
+        C, B & !C | !C & !D | !B & C & D
+        D, !A & !B & !C & !D | !A & C & D
+        """
 
-#     def test_null_example(self):
-#         bnet = """
-#         A, A | B & C
-#         B, B & !C
-#         C, B & !C | !C & !D | !B & C & D
-#         D, !A & !B & !C & !D | !A & C & D
-#         """
+        update = "asynchronous"
 
-#         update = "asynchronous"
+        primes = bnet_text2primes(bnet)
+        primes = {key: primes[key] for key in sorted(primes)}
+        stg = primes2stg(primes, update)
 
-#         primes = bnet_text2primes(bnet)
-#         primes = {key: primes[key] for key in sorted(primes)}
-#         stg = primes2stg(primes, update)
-#         scc_dag = get_scc_dag(stg)
-#         scc_indices = get_scc_states(scc_dag, as_indices=True, DEBUG=True)
-#         attractor_indices = get_attractor_states(scc_dag, as_indices=True, DEBUG=True)
+        transition_matrix = get_transition_matrix(stg, update=update)
+        null_group = null_grouping(bnet)
+        null_matrix = compress_matrix(transition_matrix, null_group)
 
-#         transition_matrix = get_transition_matrix(stg, update=update)
-#         null_group = null_grouping(bnet)
-#         null_matrix = compress_matrix(transition_matrix, null_group)
+        predicted_attractor_indices = get_predicted_attractors(null_matrix, null_group, as_indices=True, DEBUG=True)
 
-#         null_inf = nsquare(null_matrix, 20, DEBUG=True)
-#         null_inf_expanded = expand_matrix(null_inf, null_group)
+        null_inf = nsquare(null_matrix, 20, DEBUG=True)
+        null_inf_expanded = expand_matrix(null_inf, null_group)
 
-#         convergence_matrix, _, _ = get_convergence_matrix(null_inf_expanded, scc_indices, attractor_indices, DEBUG=True)
+        convergence_matrix = get_convergence_matrix(null_inf_expanded, predicted_attractor_indices, DEBUG=True)
 
-#         strong_basin = get_strong_basins(convergence_matrix, DEBUG=True)
-#         expected_strong_basin = np.array([[0],
-#                                           [0],
-#                                           [0],
-#                                           [0],
-#                                           [0],
-#                                           [0],
-#                                           [0],
-#                                           [0],
-#                                           [0],
-#                                           [0]])
+        strong_basin = get_strong_basins(convergence_matrix, DEBUG=True)
+        expected_strong_basin = np.array([[0],
+                                          [0],
+                                          [0],
+                                          [1],
+                                          [0],
+                                          [0],
+                                          [0],
+                                          [0],
+                                          [1],
+                                          [0],
+                                          [1],
+                                          [0],
+                                          [0],
+                                          [0],
+                                          [0],
+                                          [0]])
 
-#         self.assertTrue(np.allclose(strong_basin, expected_strong_basin))
+        self.assertTrue(np.allclose(strong_basin, expected_strong_basin))
 
-#     def test_sd_example(self):
-#         bnet = """
-#         A, A | B & C
-#         B, B & !C
-#         C, B & !C | !C & !D | !B & C & D
-#         D, !A & !B & !C & !D | !A & C & D
-#         """
+    def test_sd_example(self):
+        bnet = """
+        A, A | B & C
+        B, B & !C
+        C, B & !C | !C & !D | !B & C & D
+        D, !A & !B & !C & !D | !A & C & D
+        """
 
-#         update = "asynchronous"
+        update = "asynchronous"
 
-#         primes = bnet_text2primes(bnet)
-#         primes = {key: primes[key] for key in sorted(primes)}
-#         stg = primes2stg(primes, update)
-#         scc_dag = get_scc_dag(stg)
-#         scc_indices = get_scc_states(scc_dag, as_indices=True, DEBUG=True)
-#         attractor_indices = get_attractor_states(scc_dag, as_indices=True, DEBUG=True)
+        primes = bnet_text2primes(bnet)
+        primes = {key: primes[key] for key in sorted(primes)}
+        stg = primes2stg(primes, update)
 
-#         transition_matrix = get_transition_matrix(stg, update=update)
-#         sd_group = sd_grouping(bnet)
-#         sd_matrix = compress_matrix(transition_matrix, sd_group)
+        transition_matrix = get_transition_matrix(stg, update=update)
+        sd_group = sd_grouping(bnet)
+        sd_matrix = compress_matrix(transition_matrix, sd_group)
 
-#         sd_inf = nsquare(sd_matrix, 20, DEBUG=True)
-#         sd_inf_expanded = expand_matrix(sd_inf, sd_group)
+        predicted_attractor_indices = get_predicted_attractors(sd_matrix, sd_group, as_indices=True, DEBUG=True)
 
-#         convergence_matrix, _, _ = get_convergence_matrix(sd_inf_expanded, scc_indices, attractor_indices, DEBUG=True)
+        sd_inf = nsquare(sd_matrix, 20, DEBUG=True)
+        sd_inf_expanded = expand_matrix(sd_inf, sd_group)
 
-#         strong_basin = get_strong_basins(convergence_matrix, DEBUG=True)
-#         expected_strong_basin = np.array([[1],
-#                                           [0],
-#                                           [0],
-#                                           [1],
-#                                           [1],
-#                                           [0],
-#                                           [0],
-#                                           [1],
-#                                           [1],
-#                                           [1]])
+        convergence_matrix = get_convergence_matrix(sd_inf_expanded, predicted_attractor_indices, DEBUG=True)
 
-#         self.assertTrue(np.allclose(strong_basin, expected_strong_basin))
+        strong_basin = get_strong_basins(convergence_matrix, DEBUG=True)
+        expected_strong_basin = np.array([[1],
+                                          [1],
+                                          [1],
+                                          [1],
+                                          [0],
+                                          [0],
+                                          [0],
+                                          [0],
+                                          [1],
+                                          [1],
+                                          [1],
+                                          [1],
+                                          [1],
+                                          [1],
+                                          [1],
+                                          [1]])
+
+        self.assertTrue(np.allclose(strong_basin, expected_strong_basin))
 
 
 # class TestGetBasinRatios(unittest.TestCase):
