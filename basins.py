@@ -97,8 +97,7 @@ def get_strong_basins(
 
 
 def get_basin_ratios(
-    T_inf: np.ndarray,
-    attractor_indices: list[list[int]],
+    convergence_matrix: np.ndarray,
     DEBUG: bool = False,
 ) -> tuple[np.ndarray, list[list[str]]]:
     """
@@ -106,54 +105,29 @@ def get_basin_ratios(
 
     Parameters
     ----------
-    T_inf : numpy array
-        The transition matrix at t=inf.
-        Note that this should be 2**N x 2**N.
-    attractor_indices : list[list[int]], optional
-        The indices of the attractor states in the transition matrix.
+    convergence_matrix : numpy array
+        The probability of reaching each attractor from each state.
+        Note that this should be 2**N x A.
     DEBUG : bool, optional
         If True, performs additional checks.
 
     Returns
     -------
-    attractor_ratio : 2D numpy array
+    basin_ratio : 2D numpy array
         The probability of reaching each attractor.
         Note that it is 2D for compatibility with other functions.
         Each row must sum to 1.
-    attractor_states : list[list[str]]
-        The states of each attractor.
     """
 
     if DEBUG:
-        check_transition_matrix(T_inf)
+        check_transition_matrix(convergence_matrix, partial=True)
 
-        # Check that the attractor indices are valid
-        for attractor in attractor_indices:
-            for state in attractor:
-                if 0 > state or state >= T_inf.shape[0]:
-                    raise ValueError("The attractor indices must be valid.")
-
-        # Check that the attractor indices are mutually exclusive
-        for i in range(len(attractor_indices)):
-            for j in range(i + 1, len(attractor_indices)):
-                if set(attractor_indices[i]).intersection(set(attractor_indices[j])):
-                    raise ValueError("The attractor indices must be mutually exclusive.")
-
-    N = int(np.log2(T_inf.shape[0]))
-
-    # Get the attractor states
-    attractor_states = indices_to_states(attractor_indices, N, DEBUG=DEBUG)
-
-    state_prob = np.mean(T_inf, axis=0)
-
-    attractor_ratio = np.zeros((1, len(attractor_indices)))
-    for i, attractor in enumerate(attractor_indices):
-        attractor_ratio[0][i] = state_prob[attractor].sum()
+    basin_ratios = np.mean(convergence_matrix, axis=0, keepdims=True)
 
     # Normalize the basin ratios
-    attractor_ratio /= attractor_ratio.sum()
+    basin_ratios /= basin_ratios.sum()
 
-    return attractor_ratio, attractor_states
+    return basin_ratios
 
 
 # def get_node_average_values(
