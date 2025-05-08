@@ -289,7 +289,7 @@ def expand_matrix(
     return expanded
 
 
-def get_rms_diff(A: np.ndarray, B: np.ndarray, compressed: bool = False, partial: bool = False, DEBUG: bool = False) -> float:
+def get_rms_diff(A: np.ndarray, B: np.ndarray, compressed: bool = False, partial: bool = False, row_wise_average: bool = False, DEBUG: bool = False) -> float:
     """
     Calculate the root mean squared (RMS) difference between two stochastic matrices A and B.
 
@@ -321,6 +321,10 @@ def get_rms_diff(A: np.ndarray, B: np.ndarray, compressed: bool = False, partial
     >>> B = np.array([[1, 0], [1/2, 1/2]])
     >>> get_rms_diff(A, B)
     0.35355339059327376220042218105242
+
+    Note
+    ----
+    As the size of each row of the stochastic matrix grows, the RMS difference will approach 0.
     """
 
     if DEBUG:
@@ -335,19 +339,32 @@ def get_rms_diff(A: np.ndarray, B: np.ndarray, compressed: bool = False, partial
     A = A.astype(np.float64)
     B = B.astype(np.float64)
 
-    # Calculate the squared difference
-    diff_squared = (A - B)**2
+    if not row_wise_average:
+        # Calculate the squared difference
+        diff_squared = (A - B)**2
 
-    # Calculate the mean of the squared difference
-    mse = np.mean(diff_squared)
+        # Calculate the mean of the squared difference
+        mse = np.mean(diff_squared)
 
-    # Calculate the RMS difference
-    rms_diff = np.sqrt(mse)
+        # Calculate the RMS difference
+        rms_diff = np.sqrt(mse)
 
-    return rms_diff
+        return rms_diff
+
+    else:
+        # Calculate the squared difference
+        diff_squared = (A - B)**2
+
+        # Calculate the mean of the squared difference
+        mse = np.mean(diff_squared, axis=1)
+
+        # Calculate the RMS difference
+        rms_diff = np.sqrt(mse)
+
+        return np.mean(rms_diff)
 
 
-def get_dkl(A: np.ndarray, B: np.ndarray, compressed: bool = False, partial: bool = False, DEBUG: bool = False) -> float:
+def get_dkl(A: np.ndarray, B: np.ndarray, compressed: bool = False, partial: bool = False, row_wise_average: bool = False, DEBUG: bool = False) -> float:
     """
     Calculate the Kullback-Leibler divergence between two stochastic matrices A and B.
 
@@ -409,10 +426,17 @@ def get_dkl(A: np.ndarray, B: np.ndarray, compressed: bool = False, partial: boo
     # Each value in dkl should be non-negative
     dkl = np.maximum(dkl, 0.0)
 
-    # Calculate the total KL divergence
-    total_dkl = np.sum(dkl)
+    if not row_wise_average:
+        # Calculate the total KL divergence
+        total_dkl = np.sum(dkl)
 
-    return total_dkl
+        return total_dkl
+
+    else:
+        # Calculate the average KL divergence
+        average_dkl = np.mean(dkl)
+
+        return average_dkl
 
 
 def get_confusion_matrix(
