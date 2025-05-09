@@ -4,11 +4,11 @@ import numpy as np
 from pyboolnet.external.bnet2primes import bnet_text2primes
 from pyboolnet.state_transition_graphs import primes2stg
 
-from basins import get_convergence_matrix, get_strong_basins, get_basin_ratios
-from transition_matrix import get_transition_matrix
+from attractors import get_predicted_attractors
+from basins import get_convergence_matrix, get_strong_basins, get_basin_ratios, get_node_average_values
 from grouping import sd_grouping, null_grouping
 from matrix_operations import nsquare, compress_matrix, expand_matrix
-from attractors import get_predicted_attractors
+from transition_matrix import get_transition_matrix
 
 
 class TestGetConvergenceMatrix(unittest.TestCase):
@@ -232,6 +232,79 @@ class TestGetBasinRatios(unittest.TestCase):
         expected_basin_ratios = np.array([[0.275, 0.1, 0.625]])
 
         self.assertTrue(np.allclose(basin_ratios, expected_basin_ratios))
+
+
+class TestGetNodeAverageValues(unittest.TestCase):
+    def test_2x2_transition_matrix(self):
+        T_inf_expanded = np.array([[0.5, 0.5], [0.5, 0.5]])
+        expected_result = np.array([[0.5]])
+        self.assertTrue(np.allclose(get_node_average_values(T_inf_expanded), expected_result))
+
+    def test_2x2_transition_matrix2(self):
+        T_inf_expanded = np.array([[1, 0], [0, 1]])
+        expected_result = np.array([[0.5]])
+        self.assertTrue(np.allclose(get_node_average_values(T_inf_expanded), expected_result))
+
+    def test_2x2_transition_matrix2(self):
+        T_inf_expanded = np.array([[0, 1], [0, 1]])
+        expected_result = np.array([[1]])
+        self.assertTrue(np.allclose(get_node_average_values(T_inf_expanded), expected_result))
+
+    def test_4x4_transition_matrix(self):
+        T_inf_expanded = np.array([[0.25, 0.25, 0.25, 0.25], 
+                                   [0.25, 0.25, 0.25, 0.25], 
+                                   [0.25, 0.25, 0.25, 0.25], 
+                                   [0.25, 0.25, 0.25, 0.25]])
+        expected_result = np.array([[0.5, 0.5]])
+        self.assertTrue(np.allclose(get_node_average_values(T_inf_expanded), expected_result))
+
+    def test_4x4_transition_matrix2(self):
+        T_inf_expanded = np.array([[1, 0, 0, 0], 
+                                   [0, 1, 0, 0], 
+                                   [0, 0, 1, 0], 
+                                   [0, 0, 0, 1]])
+        expected_result = np.array([[0.5, 0.5]])
+        self.assertTrue(np.allclose(get_node_average_values(T_inf_expanded), expected_result))
+
+    def test_non_square_transition_matrix(self):
+        T_inf_expanded = np.array([[0.5, 0.5], [0.5, 0.5], [0.5, 0.5]])
+        with self.assertRaises(ValueError):
+            get_node_average_values(T_inf_expanded, DEBUG=True)
+
+    def test_invalid_transition_matrix(self):
+        T_inf_expanded = np.array([[0.5, 0.5], [0.5, 1.5]])
+        with self.assertRaises(ValueError):
+            get_node_average_values(T_inf_expanded, DEBUG=True)
+
+    def test_debug_true(self):
+        T_inf_expanded = np.array([[0.5, 0.5], [0.5, 0.5]])
+        expected_result = np.array([[0.5]])
+        self.assertTrue(np.allclose(get_node_average_values(T_inf_expanded, DEBUG=True), expected_result))
+
+    def test_example(self):
+        bnet = """
+        A, A | B & C
+        B, B & !C
+        C, B & !C | !C & !D | !B & C & D
+        D, !A & !B & !C & !D | !A & C & D
+        """
+
+        update = "asynchronous"
+
+        DEBUG = True
+
+        primes = bnet_text2primes(bnet)
+        primes = {key: primes[key] for key in sorted(primes)}
+        stg = primes2stg(primes, update)
+
+        T = get_transition_matrix(stg, update=update, DEBUG=DEBUG)
+        T_inf = nsquare(T, 20, DEBUG=DEBUG)
+
+        T_node_average_values = get_node_average_values(T_inf, DEBUG=DEBUG)
+
+        expected_T_node_average_values = np.array([[0.625, 0, 0.504, 0.192]])
+
+        self.assertTrue(np.allclose(T_node_average_values, expected_T_node_average_values, atol=1e-3))
 
 
 if __name__ == '__main__':

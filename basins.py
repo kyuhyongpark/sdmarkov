@@ -130,45 +130,47 @@ def get_basin_ratios(
     return basin_ratios
 
 
-# def get_node_average_values(
-#     transition_matrix: np.ndarray,
-#     attractor_indices: list[list[int]] = None,
-#     scc_dag: nx.DiGraph = None,
-#     stg: nx.DiGraph = None,
-#     DEBUG: bool = False
-# ):
+def get_node_average_values(
+    T_inf_expanded: np.ndarray,
+    DEBUG: bool = False
+) -> np.ndarray:
+    """
+    Compute the average value of each node, given the transition matrix at t=inf.
 
-#     # start with getting the stg
-#     if attractor_indices == None and scc_dag == None and stg == None:
-#         stg = get_stg(transition_matrix, DEBUG=DEBUG)
+    Parameters
+    ----------
+    T_inf_expanded : numpy array
+        The transition matrix at t=inf. Note that this should be 2**N x 2**N.
+    DEBUG : bool, optional
+        If True, performs additional checks.
 
-#     # start with getting the scc dag
-#     if attractor_indices == None and scc_dag == None and stg != None:
-#         scc_dag = get_scc_dag(stg)
+    Returns
+    -------
+    node_average_values : numpy array, shape (1, N)
+        The average value of each node.
+    """
 
-#     # start with getting the attractor index
-#     if attractor_indices == None and scc_dag != None:
-#         attractor_indices = get_attractor_states(scc_dag, as_indices=True, DEBUG=DEBUG)
+    if DEBUG:
+        check_transition_matrix(T_inf_expanded)
 
-#     # get the basins
-#     T_inf = nsquare(transition_matrix, 20, DEBUG=DEBUG)
+    N = int(np.log2(T_inf_expanded.shape[0]))
 
-#     state_prob = np.mean(T_inf, axis=0)
+    state_prob = np.mean(T_inf_expanded, axis=0)
 
-#     all_attractor_states = []
-#     for attractor in attractor_indices:
-#         all_attractor_states.extend(attractor)
+    node_average_values = np.zeros(N)
 
-#     print(all_attractor_states)
+    for i, prob in enumerate(state_prob):
+        if prob != 0:
+            # convert i into binary string
+            state_str = bin(i)[2:].zfill(N)
+            state_value = np.array([float(state_str[j]) for j in range(N)])
+            contribution = prob * state_value
+            node_average_values += contribution
 
-#     node_average_values = np.zeros(len(primes))
-#     for state in all_attractor_states:
+    # if any value is greater than 1, set it to 1
+    node_average_values[node_average_values > 1] = 1
 
-#         # convert decimal index to binary string
-#         state_str = bin(state)[2:].zfill(len(primes))
+    # turn it into a (1, N) array
+    node_average_values = np.expand_dims(node_average_values, axis=0)
 
-#         node_values = np.array([float(state_str[i]) for i in range(len(state_str))])
-
-#         print(f"Node values for state {state}: {node_values}")
-
-#         node_average_values += node_values * state_prob[state]
+    return node_average_values
