@@ -360,6 +360,7 @@ def get_sd_group_states(
     -----
     It may happen that certain SD nodes do not have a corresponding binary state.
     In that case, the corresponding sublist in the returned list will be empty.
+    This is to easily compare with sd_nodes, sd_edges, and extra_groups.
 
     """
     

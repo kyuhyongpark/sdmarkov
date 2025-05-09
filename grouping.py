@@ -73,6 +73,9 @@ def sd_grouping(bnet: str, DEBUG: bool = False) -> list[list[int]]:
 
     indices = states_to_indices(sd_group_states, DEBUG=DEBUG)
 
+    # remove empty groups
+    indices = [group for group in indices if group]
+
     return indices
 
 def null_grouping(bnet: str, DEBUG: bool = False) -> list[list[int]]:
@@ -107,6 +110,9 @@ def null_grouping(bnet: str, DEBUG: bool = False) -> list[list[int]]:
     success, min_trap_states, duplicates = get_sd_group_states(nodes, min_trap_nodes, sd_edges=_, DEBUG=DEBUG)
 
     indices = states_to_indices(min_trap_states, DEBUG=DEBUG)
+
+    # remove empty groups
+    indices = [group for group in indices if group]
 
     return indices
 
@@ -182,6 +188,9 @@ def random_grouping(
 
     indices.extend(null_indices[1:])
 
+    # remove empty groups
+    indices = [group for group in indices if group]
+
     return indices
 
 
@@ -244,6 +253,7 @@ def divide_list_into_sublists(
         if all(len(sublist) >= m for sublist in sublists):  # If no sublist is smaller than m
             return sorted(sublists)
 
+
 # Function to calculate the number of configurations based on the sublist lengths
 def calculate_combinations(lengths):
     total_length = sum(lengths)
@@ -259,6 +269,7 @@ def calculate_combinations(lengths):
         result //= math.factorial(count)
 
     return result
+
 
 # Function to run and compare the results with possible combinations
 def compare_with_possible_combinations(input_list, N, m, num_runs=1000):
