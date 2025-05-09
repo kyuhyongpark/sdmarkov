@@ -1,17 +1,17 @@
 import numpy as np
 
-from transition_matrix import check_transition_matrix
 from graph import get_stg, get_markov_chain
+from helper import check_transition_matrix
 from scc_dags import get_scc_dag, get_attractor_states
 
 
-def attractor_or_transient(T_inf, DEBUG=False):
+def attractor_or_transient(T_inf_expanded, DEBUG=False):
     """
     Determine if each state is part of an attractor or transient state.
 
     Parameters
     ----------
-    T_inf : np.ndarray
+    T_inf_expanded : np.ndarray
         The transition matrix at t=inf.
     DEBUG : bool, optional
         If True, performs additional checks.
@@ -23,12 +23,12 @@ def attractor_or_transient(T_inf, DEBUG=False):
         attractor, and 0 otherwise.
     """
     if DEBUG:
-        check_transition_matrix(T_inf)
+        check_transition_matrix(T_inf_expanded)
 
-    attractor_matrix = np.zeros((T_inf.shape[0], 1))
+    attractor_matrix = np.zeros((T_inf_expanded.shape[0], 1))
 
-    for i in range(T_inf.shape[0]):
-        if T_inf[i][i] != 0:
+    for i in range(T_inf_expanded.shape[0]):
+        if T_inf_expanded[i][i] != 0:
             attractor_matrix[i][0] = 1
 
     return attractor_matrix
@@ -52,7 +52,7 @@ def get_predicted_attractors(transition_matrix, group_indices=None, as_indices=F
 
     Returns
     -------
-    attractor_states : list[list[int]]
+    attractor_states : list[list]
         The states of the attractors predicted by the transition matrix.
     """
 

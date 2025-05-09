@@ -1,7 +1,8 @@
 import numpy as np
 
 from graph import get_stg
-from transition_matrix import check_transition_matrix, get_hamming_distance_matrix
+from helper import check_transition_matrix
+from transition_matrix import get_hamming_distance_matrix
 from scc_dags import get_scc_dag, get_scc_states
 
 

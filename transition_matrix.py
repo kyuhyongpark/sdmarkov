@@ -1,55 +1,7 @@
 import numpy as np
 import networkx as nx
 
-from graph import check_stg
-
-
-def check_transition_matrix(transition_matrix: np.ndarray, compressed: bool=False, partial: bool=False) -> None:
-    """
-    Validate the structure and properties of a transition matrix.
-
-    Parameters
-    ----------
-    transition_matrix : np.ndarray, shape (2^N, 2^N)
-        The matrix representing state transitions.
-    compressed : bool, optional
-        If True, the matrix is not required to have dimensions of 2^N.
-
-    Raises
-    ------
-    ValueError
-        If the matrix does not meet the specified criteria.
-
-    Notes
-    -----
-    - The matrix should be square.
-    - All elements must be between 0 and 1.
-    - Each row must sum to 1.
-    - If `compressed` is False, the number of rows/columns should be 2^N.
-    """
-
-    # Check if all elements of the matrix are numeric
-    if not np.issubdtype(transition_matrix.dtype, np.number):
-        raise ValueError("All elements of the matrix must be numeric.")
-
-    # Check that the elements of the array are between 0 and 1, with some tolerance
-    if not np.all(transition_matrix >= 0 - 1e-16) or not np.all(transition_matrix <= 1 + 1e-16):
-        raise ValueError("All elements of the matrix must be between 0 and 1. Max: {}, Min: {}".format(np.max(transition_matrix), np.min(transition_matrix)))
-
-    if not partial:
-        # Check that the matrix is square
-        if transition_matrix.shape[0] != transition_matrix.shape[1]:
-            raise ValueError("The matrix must be square.")
-
-        # Check that every row of the matrix sums to 1
-        if not np.allclose(np.sum(transition_matrix, axis=1), np.ones(transition_matrix.shape[1])):
-            raise ValueError("Every row of the matrix must sum to 1.")
-
-    if not compressed and not partial:
-        # Check if the length of the matrix is 2^N
-        N = int(np.log2(transition_matrix.shape[0]))
-        if 2**N != transition_matrix.shape[0]:
-            raise ValueError("The length of the matrix must be 2^N.")
+from helper import check_stg
 
 
 def get_transition_matrix(stg: nx.DiGraph, update: str = "asynchronous", DEBUG: bool = False) -> np.ndarray:

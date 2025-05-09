@@ -5,42 +5,7 @@ import networkx as nx
 from pyboolnet.state_transition_graphs import primes2stg
 from pyboolnet.external.bnet2primes import bnet_text2primes
 
-from transition_matrix import check_transition_matrix
 from transition_matrix import get_transition_matrix, get_hamming_distance_matrix, get_bitflip_matrix
-
-
-class TestCheckTransitionMatrix(unittest.TestCase):
-    def test_square_matrix(self):
-        transition_matrix = np.array([[0.5, 0.5], [0.5, 0.5]])
-        check_transition_matrix(transition_matrix)
-
-    def test_non_square_matrix(self):
-        transition_matrix = np.array([[0.5, 0.5], [0.5, 0.5], [0.5, 0.5]])
-        with self.assertRaises(ValueError):
-            check_transition_matrix(transition_matrix)
-
-    def test_elements_outside_range(self):
-        transition_matrix = np.array([[0.5, 1.5], [0.5, 0.5]])
-        with self.assertRaises(ValueError):
-            check_transition_matrix(transition_matrix)
-
-    def test_row_does_not_sum_to_1(self):
-        transition_matrix = np.array([[0.5, 0.4], [0.5, 0.5]])
-        with self.assertRaises(ValueError):
-            check_transition_matrix(transition_matrix)
-
-    def test_compressed_matrix_with_2N_dimensions(self):
-        transition_matrix = np.array([[0.5, 0.5], [0.5, 0.5]])
-        check_transition_matrix(transition_matrix, compressed=True)
-
-    def test_compressed_matrix_without_2N_dimensions(self):
-        transition_matrix = np.array([[0.5, 0.5, 0], [0.5, 0.5, 0], [0.5, 0.5, 0]])
-        check_transition_matrix(transition_matrix, compressed=True)
-
-    def test_non_compressed_matrix_without_2N_dimensions(self):
-        transition_matrix = np.array([[0.5, 0.5, 0], [0.5, 0.5, 0], [0.5, 0.5, 0]])
-        with self.assertRaises(ValueError):
-            check_transition_matrix(transition_matrix)
 
 
 class TestGetTransitionMatrix(unittest.TestCase):

@@ -3,8 +3,8 @@ import random
 import networkx as nx
 import numpy as np
 
-
 from transition_matrix import get_transition_matrix
+
 
 def get_all_paths(markov_chain: nx.DiGraph, DEBUG: bool = False) -> list[tuple]:
     """

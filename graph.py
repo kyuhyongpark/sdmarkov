@@ -1,7 +1,7 @@
 import networkx as nx
 import numpy as np
 
-from helper import indices_to_states
+from helper import indices_to_states, check_transition_matrix
 
 
 def get_stg(transition_matrix: np.ndarray, DEBUG: bool = False) -> nx.DiGraph:
@@ -35,20 +35,7 @@ def get_stg(transition_matrix: np.ndarray, DEBUG: bool = False) -> nx.DiGraph:
 
     # Perform basic checks if DEBUGGING
     if DEBUG:
-        # Transition matrix should be a square matrix
-        if transition_matrix.shape[0] != transition_matrix.shape[1]:
-            raise ValueError("Transition matrix should be a square matrix")
-
-        # all elements of transition matrix should be between 0 and 1
-        for i in range(transition_matrix.shape[0]):
-            for j in range(transition_matrix.shape[1]):
-                if transition_matrix[i][j] < 0 or transition_matrix[i][j] > 1:
-                    raise ValueError("all elements of transition matrix should be between 0 and 1")
-
-        # all rows of the transition matrix should sum to 1
-        for i in range(transition_matrix.shape[0]):
-            if not np.isclose(np.sum(transition_matrix[i]), 1):
-                raise ValueError("all rows of the transition matrix should sum to 1")
+        check_transition_matrix(transition_matrix)
 
     stg = nx.DiGraph()
 
@@ -70,56 +57,6 @@ def get_stg(transition_matrix: np.ndarray, DEBUG: bool = False) -> nx.DiGraph:
                 stg.add_edge(binary_i, binary_j, weight=transition_matrix[i][j])
 
     return stg
-
-
-def check_stg(stg: nx.DiGraph) -> None:
-    """
-    Check if a given state transition graph is valid.
-    TODO: apply different checks for different update schemes
-    
-    A state transition graph must satisfy the following conditions:
-
-    1. The number of nodes in the state transition graph is 2^N, where N is the number of nodes in a state;
-    2. Each node in the state transition graph must be a string of 0s and 1s;
-    3. All states in the state transition graph have the same length of N;
-    4. N should be a positive integer.
-    5. The number of outgoing edges for each state is less than or equal to N;
-
-    If any of these conditions are not met, a ValueError is raised.
-
-    Parameters
-    ----------
-    stg : networkx DiGraph
-        The state transition graph to check.
-    """
-    
-    # Check if each state is a string of 0s and 1s
-    for state in stg.nodes():
-        if not isinstance(state, str):
-            raise ValueError("Each state in the state transition graph must be a string of 0s and 1s.")
-        if not all(char in ['0', '1'] for char in state):
-            raise ValueError("Each state in the state transition graph must be a string of 0s and 1s.")
-
-    # Get the number of nodes in a state
-    N = len(list(stg.nodes())[0])
-
-    # N should be a positive integer
-    if N <= 0:
-        raise ValueError("N should be a positive integer.")
-    
-    # Check if all states have the same length of N
-    lengths = [len(node) for node in stg.nodes()]
-    if set(lengths) != set([N]):
-        raise ValueError("All states in the state transition graph must have the same length of N.")
-
-    # Check if the number of states in the state transition graph is 2^N
-    if 2**N != stg.number_of_nodes():
-        raise ValueError("The number of states in the state transition graph must be 2^N.")
-    
-    # Check if the number of outgoing transitions for each state is less than or equal to N
-    for state in stg.nodes():
-        if stg.out_degree(state) > N:
-            raise ValueError("The number of outgoing transitions for each state must be less than or equal to N.")
 
 
 def get_markov_chain(compressed_transition_matrix: np.ndarray, group_indices: list, DEBUG: bool = False) -> nx.DiGraph:
@@ -153,14 +90,7 @@ def get_markov_chain(compressed_transition_matrix: np.ndarray, group_indices: li
         return nx.DiGraph()
 
     if DEBUG:
-        if compressed_transition_matrix.shape[0] != compressed_transition_matrix.shape[1]:
-            raise ValueError("Compressed transition matrix should be a square matrix")
-
-        if not np.all((compressed_transition_matrix >= 0) & (compressed_transition_matrix <= 1)):
-            raise ValueError("All elements of the compressed transition matrix should be between 0 and 1")
-
-        if not np.allclose(np.sum(compressed_transition_matrix, axis=1), 1):
-            raise ValueError("All rows of the compressed transition matrix should sum to 1")
+        check_transition_matrix(compressed_transition_matrix, compressed=True)
 
     # Get the number of nodes
     all_indices = []

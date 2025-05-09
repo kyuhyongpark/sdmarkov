@@ -1,7 +1,6 @@
 import numpy as np
 
-from transition_matrix import check_transition_matrix
-from helper import indices_to_states
+from helper import check_transition_matrix
 
 
 def get_convergence_matrix(
