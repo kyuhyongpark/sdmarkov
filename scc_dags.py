@@ -54,15 +54,19 @@ def get_scc_dag(graph: nx.DiGraph, DEBUG: bool = False) -> nx.DiGraph:
         # In the MC case, scc will be a list of groups
         if check_element.startswith('G'):
             state_list = []
+            group_list  = []
             for state in scc:
                 state_list.extend(graph.nodes[state]['states'])
+                group_list.append(state)
             state_list.sort()
+            group_list.sort()
         # In the STG case, scc will be a list of indices
         else:
             state_list = sorted(list(scc))
+            group_list = None
 
         # Each SCC will be represented by a unique node in the DAG
-        scc_dag.add_node(idx, states=state_list)
+        scc_dag.add_node(idx, states=state_list, groups=group_list)
         for state in scc:
             state_to_scc[state] = idx  # Map each state to its SCC ID
 
@@ -78,70 +82,68 @@ def get_scc_dag(graph: nx.DiGraph, DEBUG: bool = False) -> nx.DiGraph:
     return scc_dag
 
 
-def get_scc_states(scc_dag: nx.DiGraph, as_indices: bool = False, DEBUG: bool = False) -> list[list[int]]:
+def get_scc_states(scc_dag: nx.DiGraph, as_indices: bool = False, as_groups: bool = False, DEBUG: bool = False) -> list[list[int]]:
     """
-    Returns the list of states in the SCC DAG.
-    The states are ordered according to the topological order of the SCC DAG.
-    Note that this order is not unique.
+    Retrieve the list of states in the SCC DAG ordered by topological sort.
 
-    Attractor states are moved to the end of the list, and are sorted by their first state.
+    The states are ordered according to the topological order of the SCC DAG, 
+    with attractor states moved to the end and sorted by their first state. 
+    Note that the topological order is not unique.
 
     Parameters
     ----------
     scc_dag : networkx DiGraph
         The SCC DAG.
     as_indices : bool, optional
-        If True, the states are returned as a list of decimal indices,
-        otherwise as a list of binary strings.
+        If True, returns states as a list of decimal indices.
+    as_groups : bool, optional
+        If True, expects and returns groups instead of states.
     DEBUG : bool, optional
         If True, performs additional checks.
 
     Returns
     -------
     ordered_states : list
-        The ordered list of states in the SCC DAG.
+        The ordered list of states or groups in the SCC DAG.
+        
+    Raises
+    ------
+    ValueError
+        If 'as_groups' is True and the input graph is not a Markov chain.
     """
-    # Get the topological order of the SCC DAG
+    if as_groups:
+        for node in scc_dag.nodes:
+            if scc_dag.nodes[node]['groups'] is None:
+                raise ValueError('Input graph is not a Markov chain.')
+
     topological_order = list(nx.topological_sort(scc_dag))
-
-    # Get the attractors
     attractors = [node for node, out_degree in scc_dag.out_degree() if out_degree == 0]
-
-    # Remove the attractors from the topological order
     non_attractors = [node for node in topological_order if node not in attractors]
 
-    # Build the ordered list of transient states
     transient_states = []
     for scc_id in non_attractors:
-        # Get the states in the SCC and sort them
-        scc_states = sorted(scc_dag.nodes[scc_id]['states'])
+        scc_states = sorted(scc_dag.nodes[scc_id]['groups' if as_groups else 'states'])
         transient_states.append(scc_states)
 
-    # Build the ordered list of attractor states
     attractor_states = []
     for scc_id in attractors:
-        # Get the states in the SCC and sort them
-        scc_states = sorted(scc_dag.nodes[scc_id]['states'])
+        scc_states = sorted(scc_dag.nodes[scc_id]['groups' if as_groups else 'states'])
         attractor_states.append(scc_states)
     attractor_states.sort(key=lambda x: x[0])
 
     scc_states = transient_states + attractor_states
 
     if as_indices:
-        # Convert list of binary string to list of decimals
         scc_indices = []
-        for binary_strings in scc_states:
-            index_list = []
-            for binary_string in binary_strings:
-                decimal_value = int(binary_string, 2)
-                index_list.append(decimal_value)
+        for states in scc_states:
+            index_list = [int(state[1:]) if as_groups else int(state, 2) for state in states]
             scc_indices.append(index_list)
         return scc_indices
 
     return scc_states
 
 
-def get_attractor_states(scc_dag: nx.DiGraph, as_indices: bool = False, DEBUG: bool = False) -> list[list[int]]:
+def get_attractor_states(scc_dag: nx.DiGraph, as_indices: bool = False, as_groups: bool = False, DEBUG: bool = False) -> list[list[int]]:
     """
     Retrieve the attractor states from a given SCC DAG.
 
@@ -161,13 +163,17 @@ def get_attractor_states(scc_dag: nx.DiGraph, as_indices: bool = False, DEBUG: b
         A list of attractor states in the SCC DAG.
         Each attractor is represented by the states within it, either as binary strings or decimal indices.
     """
+    if as_groups:
+        for node in scc_dag.nodes:
+            if scc_dag.nodes[node]['groups'] is None:
+                raise ValueError('Input graph is not a Markov chain.')
 
     # Identify attractors (sink nodes in the DAG)
     attractors = [node for node, out_degree in scc_dag.out_degree() if out_degree == 0]
 
     attractor_states = []
     for node in attractors:
-        attractor_states.append(sorted(scc_dag.nodes[node]['states']))
+        attractor_states.append(sorted(scc_dag.nodes[node]['groups' if as_groups else 'states']))
 
     if DEBUG:
         if not attractor_states:
@@ -179,11 +185,8 @@ def get_attractor_states(scc_dag: nx.DiGraph, as_indices: bool = False, DEBUG: b
     if as_indices:
         # Convert list of binary strings to list of decimals
         attractor_indices = []
-        for binary_strings in attractor_states:
-            index_list = []
-            for binary_string in binary_strings:
-                decimal_value = int(binary_string, 2)
-                index_list.append(decimal_value)
+        for states in attractor_states:
+            index_list = [int(state[1:]) if as_groups else int(state, 2) for state in states]
             attractor_indices.append(index_list)
         return attractor_indices
 

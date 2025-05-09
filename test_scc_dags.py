@@ -63,6 +63,7 @@ class TestGetSCCDAG(unittest.TestCase):
 
         self.assertEqual(scc_dag.number_of_nodes(), 1)
         self.assertEqual(scc_dag.nodes[0]['states'], ['00', '01', '10', '11'])
+        self.assertEqual(scc_dag.nodes[0]['groups'], ['G0', 'G2'])
         self.assertEqual(scc_dag.number_of_edges(), 0)
 
     def test_example(self):
@@ -146,6 +147,12 @@ class TestGetSCCStates(unittest.TestCase):
 
         scc_states = get_scc_states(scc_dag)
         self.assertEqual(scc_states, [['00', '01', '10', '11']])
+
+        scc_states = get_scc_states(scc_dag, as_groups=True)
+        self.assertEqual(scc_states, [['G0', 'G2']])
+
+        scc_states = get_scc_states(scc_dag, as_indices=True, as_groups=True)
+        self.assertEqual(scc_states, [[0, 2]])
 
     def test_example(self):
         bnet = """
@@ -244,6 +251,12 @@ class TestGetAttractorStates(unittest.TestCase):
         attractor_states = get_attractor_states(scc_dag)
         self.assertEqual(attractor_states, [['10', '11']])
 
+        attractor_states = get_attractor_states(scc_dag, as_groups=True)
+        self.assertEqual(attractor_states, [['G2']])
+
+        attractor_states = get_attractor_states(scc_dag, as_indices=True, as_groups=True)
+        self.assertEqual(attractor_states, [[2]])
+
     def test_example(self):
         bnet = """
         A, A | B & C
@@ -265,6 +278,7 @@ class TestGetAttractorStates(unittest.TestCase):
 
         self.assertEqual(attractor_states, [['0000', '0001', '0010'], ['0011'], ['1000', '1010']])
         self.assertEqual(attractor_indices, [[0, 1, 2], [3], [8, 10]])
+
 
 if __name__ == '__main__':
     unittest.main()
