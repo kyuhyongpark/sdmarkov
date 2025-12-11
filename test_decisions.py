@@ -4,13 +4,11 @@ import numpy as np
 from pyboolnet.external.bnet2primes import bnet_text2primes
 from pyboolnet.state_transition_graphs import primes2stg
 
+from decisions import get_decision_matrix, expand_decision_matrix, compare_decision_matrices
 from transition_matrix import get_transition_matrix
-from decisions import get_decision_matrix
-from decisions import expand_decision_matrix
-from decisions import compare_decision_matrices
+
 
 class TestGetDecisionMatrix(unittest.TestCase):
-
     def test_no_decision(self):
         transition_matrix = np.array([[0.5, 0.5], [0.5, 0.5]])
         decision_matrix = get_decision_matrix(transition_matrix)
@@ -85,7 +83,6 @@ class TestExpandDecisionMatrix(unittest.TestCase):
 
 
 class TestCompareDecisionMatrices(unittest.TestCase):
-
     def test_same_shape(self):
         answer = np.array([[1, -1], [-1, 1]])
         guess = np.array([[1, -1], [-1, 1]])
