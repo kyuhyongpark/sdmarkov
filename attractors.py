@@ -34,7 +34,7 @@ def attractor_or_transient(T_inf_expanded, DEBUG=False):
     return attractor_matrix
 
 
-def get_predicted_attractors(transition_matrix, group_indices=None, as_indices=False, DEBUG=False):
+def get_predicted_attractors(transition_matrix, group_indices=None, as_indices=False, as_groups=False, DEBUG=False):
     """
     Get the states of the attractors predicted by the transition matrix.
 
@@ -47,6 +47,8 @@ def get_predicted_attractors(transition_matrix, group_indices=None, as_indices=F
         Must be provided if the transition matrix is grouped.
     as_indices : bool, optional
         If True, returns the indices of the attractors.
+    as_groups : bool, optional
+        If True, returns the groups or the group indices of the attractors.
     DEBUG : bool, optional
         If True, performs additional checks.
 
@@ -65,6 +67,6 @@ def get_predicted_attractors(transition_matrix, group_indices=None, as_indices=F
         markov_chain = get_markov_chain(transition_matrix, group_indices, DEBUG=DEBUG)
 
     scc_dag = get_scc_dag(markov_chain, DEBUG=DEBUG)
-    attractor_states = get_attractor_states(scc_dag, as_indices=as_indices, DEBUG=DEBUG)
+    attractor_states = get_attractor_states(scc_dag, as_indices=as_indices, as_groups=as_groups, DEBUG=DEBUG)
 
     return attractor_states
