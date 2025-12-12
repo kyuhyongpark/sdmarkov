@@ -1,7 +1,10 @@
 import numpy as np
 
-from transition_matrix import get_stg, check_transition_matrix, get_hamming_distance_matrix
-from scc_dags import get_scc_dag, get_ordered_states
+from graph import get_stg
+from helper import check_transition_matrix
+from transition_matrix import get_hamming_distance_matrix
+from scc_dags import get_scc_dag, get_scc_states
+
 
 def reorder_matrix(matrix: np.ndarray, index_list: list[int]) -> np.ndarray:
     """
@@ -149,11 +152,11 @@ def compress_matrix(
             if any(index < 0 or index >= matrix.shape[0] for index in group):
                 raise ValueError("Index groups must be within the bounds of the matrix.")
 
-    all_indexes = []
+    all_indices = []
     for group in index_groups:
-        all_indexes.extend(group)
+        all_indices.extend(group)
 
-    row_merged = np.delete(matrix, all_indexes, axis=0)
+    row_merged = np.delete(matrix, all_indices, axis=0)
 
     for group in reversed(index_groups):
         if len(group) == 0:
@@ -161,7 +164,7 @@ def compress_matrix(
         insert_row = np.mean(matrix[group], axis=0)
         row_merged = np.insert(row_merged, 0, insert_row, axis=0)
 
-    merged = np.delete(row_merged, all_indexes, axis=1)
+    merged = np.delete(row_merged, all_indices, axis=1)
 
     for group in reversed(index_groups):
         if len(group) == 0:
@@ -238,21 +241,21 @@ def expand_matrix(
 
     compressed_matrix_dimension = len(matrix)
 
-    all_indexes = []
+    all_indices = []
     for group in index_groups:
-        all_indexes.extend(group)
+        all_indices.extend(group)
 
     non_empty_groups = [group for group in index_groups if group]
 
     expanded_matrix_dimension = (
-        compressed_matrix_dimension - len(non_empty_groups) + len(all_indexes)
+        compressed_matrix_dimension - len(non_empty_groups) + len(all_indices)
     )
 
     row_expanded = np.zeros((expanded_matrix_dimension, compressed_matrix_dimension))
 
     j = 0
     for i in range(expanded_matrix_dimension):
-        if i not in all_indexes:
+        if i not in all_indices:
             # First len(non_empty_groups) rows of the matrix are the compressed rows,
             # and the rest are the not-compressed rows.
             # Here restore the j-th not-compressed row.
@@ -268,7 +271,7 @@ def expand_matrix(
 
     j = 0
     for i in range(expanded_matrix_dimension):
-        if i not in all_indexes:
+        if i not in all_indices:
             # First len(non_empty_groups) columns of the matrix are the compressed columns,
             # and the rest are the not-compressed columns.
             # Here restore the j-th not-compressed column.
@@ -287,7 +290,7 @@ def expand_matrix(
     return expanded
 
 
-def get_rms_diff(A: np.ndarray, B: np.ndarray, DEBUG: bool = False) -> float:
+def get_rms_diff(A: np.ndarray, B: np.ndarray, compressed: bool = False, partial: bool = False, row_wise_average: bool = False, DEBUG: bool = False) -> float:
     """
     Calculate the root mean squared (RMS) difference between two stochastic matrices A and B.
 
@@ -297,6 +300,14 @@ def get_rms_diff(A: np.ndarray, B: np.ndarray, DEBUG: bool = False) -> float:
         The first matrix.
     B : numpy array
         The second matrix.
+    compressed : bool, optional
+        If True, the matrices are compressed,
+        and the number of rows/columns don't need to be 2^N.
+    partial : bool, optional
+        If True, the matrices are partial,
+        and number of rows/columns don't need to be 2^N,
+        the matrixes don't need to be square,
+        and each row doesn't need to sum to 1.
     DEBUG : bool, optional
         If True, perform basic checks.
 
@@ -311,6 +322,10 @@ def get_rms_diff(A: np.ndarray, B: np.ndarray, DEBUG: bool = False) -> float:
     >>> B = np.array([[1, 0], [1/2, 1/2]])
     >>> get_rms_diff(A, B)
     0.35355339059327376220042218105242
+
+    Note
+    ----
+    As the size of each row of the stochastic matrix grows, the RMS difference will approach 0.
     """
 
     if DEBUG:
@@ -318,26 +333,39 @@ def get_rms_diff(A: np.ndarray, B: np.ndarray, DEBUG: bool = False) -> float:
         if A.shape != B.shape:
             raise ValueError("The matrices must have the same shape.")
 
-        check_transition_matrix(A, compressed=True)
-        check_transition_matrix(B, compressed=True)
+        check_transition_matrix(A, compressed, partial)
+        check_transition_matrix(B, compressed, partial)
 
     # Convert A and B to floats
     A = A.astype(np.float64)
     B = B.astype(np.float64)
 
-    # Calculate the squared difference
-    diff_squared = (A - B)**2
+    if not row_wise_average:
+        # Calculate the squared difference
+        diff_squared = (A - B)**2
 
-    # Calculate the mean of the squared difference
-    mse = np.mean(diff_squared)
+        # Calculate the mean of the squared difference
+        mse = np.mean(diff_squared)
 
-    # Calculate the RMS difference
-    rms_diff = np.sqrt(mse)
+        # Calculate the RMS difference
+        rms_diff = np.sqrt(mse)
 
-    return rms_diff
+        return rms_diff
+
+    else:
+        # Calculate the squared difference
+        diff_squared = (A - B)**2
+
+        # Calculate the mean of the squared difference
+        mse = np.mean(diff_squared, axis=1)
+
+        # Calculate the RMS difference
+        rms_diff = np.sqrt(mse)
+
+        return np.mean(rms_diff)
 
 
-def get_dkl(A: np.ndarray, B: np.ndarray, DEBUG: bool = False) -> float:
+def get_dkl(A: np.ndarray, B: np.ndarray, compressed: bool = False, partial: bool = False, row_wise_average: bool = False, DEBUG: bool = False) -> float:
     """
     Calculate the Kullback-Leibler divergence between two stochastic matrices A and B.
 
@@ -347,6 +375,14 @@ def get_dkl(A: np.ndarray, B: np.ndarray, DEBUG: bool = False) -> float:
         The first matrix.
     B : numpy array
         The second matrix.
+    compressed : bool, optional
+        If True, the matrices are compressed,
+        and the number of rows/columns don't need to be 2^N.
+    partial : bool, optional
+        If True, the matrices are partial,
+        and number of rows/columns don't need to be 2^N,
+        the matrixes don't need to be square,
+        and each row doesn't need to sum to 1.
     DEBUG : bool, optional
         If True, perform basic checks.
 
@@ -368,8 +404,12 @@ def get_dkl(A: np.ndarray, B: np.ndarray, DEBUG: bool = False) -> float:
         if A.shape != B.shape:
             raise ValueError("The matrices must have the same shape.")
 
-        check_transition_matrix(A, compressed=True)
-        check_transition_matrix(B, compressed=True)
+        # The dimension of the matricies should be 2
+        if A.ndim != 2:
+            raise ValueError("The matrices must be 2-dimensional.")
+
+        check_transition_matrix(A, compressed, partial)
+        check_transition_matrix(B, compressed, partial)
 
     # Convert A and B to floats
     A = A.astype(np.float64)
@@ -387,10 +427,84 @@ def get_dkl(A: np.ndarray, B: np.ndarray, DEBUG: bool = False) -> float:
     # Each value in dkl should be non-negative
     dkl = np.maximum(dkl, 0.0)
 
-    # Calculate the total KL divergence
-    total_dkl = np.sum(dkl)
+    if not row_wise_average:
+        # Calculate the total KL divergence
+        total_dkl = np.sum(dkl)
 
-    return total_dkl
+        return total_dkl
+
+    else:
+        # Calculate the average KL divergence
+        average_dkl = np.mean(dkl)
+
+        return average_dkl
+
+
+def get_confusion_matrix(
+    answer: np.ndarray,
+    guess: np.ndarray,
+    compressed: bool = False,
+    partial: bool = False,
+    DEBUG: bool = False
+) -> tuple[int, int, int, int]:
+    """
+    Calculate the true positives, false positives, true negatives, and false negatives
+    between two matrices, `answer` and `guess`.
+
+    Parameters
+    ----------
+    answer : np.ndarray
+        The ground truth matrix.
+    guess : np.ndarray
+        The predicted matrix.
+    compressed : bool, optional
+        If True, the matrices are compressed,
+        and the number of rows/columns don't need to be 2^N.
+    partial : bool, optional
+        If True, the matrices are partial,
+        and number of rows/columns don't need to be 2^N,
+        the matrixes don't need to be square,
+        and each row doesn't need to sum to 1.
+    DEBUG : bool, optional
+        If True, perform basic checks.
+
+    Returns
+    -------
+    tuple
+        A tuple containing four integers: (TP, FP, TN, FN)
+        - TP: Number of true positives
+        - FP: Number of false positives
+        - TN: Number of true negatives
+        - FN: Number of false negatives
+
+    Examples
+    --------
+    >>> answer = np.array([[1, 0], [0, 1]])
+    >>> guess = np.array([[1, 0], [1/2, 1/2]])
+    >>> get_confusion_matrix(answer, guess)
+    (2, 1, 1, 0)
+    """
+
+    if DEBUG:
+        # Check that the matrices have the same shape
+        if answer.shape != guess.shape:
+            raise ValueError("The matrices must have the same shape.")
+
+        check_transition_matrix(answer, compressed, partial)
+        check_transition_matrix(guess, compressed, partial)
+
+    # Define the conditions for each category
+    TP = np.sum((answer != 0) & (guess != 0))  # True positives
+    FP = np.sum((answer == 0) & (guess != 0))  # False positives
+    TN = np.sum((answer == 0) & (guess == 0))  # True negatives
+    FN = np.sum((answer != 0) & (guess == 0))  # False negatives
+
+    if DEBUG:
+        # Check that the sum of TP, FP, TN, and FN is equal to the total number of elements
+        if TP + FP + TN + FN != answer.size:
+            raise ValueError("The sum of TP, FP, TN, and FN must be equal to the total number of elements.")
+
+    return TP, FP, TN, FN
 
 
 def get_reachability(answer, guess, get_type="all", scc_indices=None, attractor_states=None, DEBUG=False):
@@ -573,6 +687,9 @@ def get_block_triangular(transition_matrix, scc_indices=None, scc_dag=None, stg=
     Note that the topological order of the scc dag is not unique.
     Use scc_indices when comparing different block triangular matrices,
     so that the order of states is consistent.
+
+    Also note that the outcome may not be block triangular
+    if using scc_indices of a different matrix.
     """
 
     if DEBUG:
@@ -588,7 +705,7 @@ def get_block_triangular(transition_matrix, scc_indices=None, scc_dag=None, stg=
 
     # Starting from the scc dag
     if scc_dag != None and scc_indices == None:
-        scc_indices = get_ordered_states(scc_dag, as_indexes=True)
+        scc_indices = get_scc_states(scc_dag, as_indices=True)
         if DEBUG:
             print("Calculated scc_indices", scc_indices)
 
@@ -598,11 +715,6 @@ def get_block_triangular(transition_matrix, scc_indices=None, scc_dag=None, stg=
         index_list.extend(scc)
     
     block_triangular = reorder_matrix(transition_matrix, index_list)
-
-    # if DEBUG:
-    #     # Check that the matrix is block triangular
-    #     if not is_block_triangular(block_triangular, scc_indices):
-    #         print("The matrix is not block triangular.")
 
     return block_triangular, scc_indices
 

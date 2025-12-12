@@ -12,7 +12,7 @@ class TestSdGrouping(unittest.TestCase):
         C, B & !C | !C & !D | !B & C & D
         D, !A & !B & !C & !D | !A & C & D
         """
-        expected_output = [[4, 5, 6, 7], [], [0, 1, 2], [3], [12, 14], [8, 10], [13, 15], [9, 11]]
+        expected_output = [[4, 5, 6, 7], [0, 1, 2], [3], [12, 14], [8, 10], [13, 15], [9, 11]]
         output = sd_grouping(bnet)
         self.assertEqual(output, expected_output)
 
@@ -23,7 +23,7 @@ class TestSdGrouping(unittest.TestCase):
         A, A | B & C
         C, B & !C | !C & !D | !B & C & D
         """
-        expected_output = [[4, 5, 6, 7], [], [0, 1, 2], [3], [12, 14], [8, 10], [13, 15], [9, 11]]
+        expected_output = [[4, 5, 6, 7], [0, 1, 2], [3], [12, 14], [8, 10], [13, 15], [9, 11]]
 
         output = sd_grouping(bnet)
         self.assertEqual(output, expected_output)
@@ -38,7 +38,6 @@ class TestSdGrouping(unittest.TestCase):
         expected_output = [[12, 14,],
                            [8],
                            [0],
-                           [],
                            [9],
                            [15],
                            [10],
@@ -67,7 +66,7 @@ class TestSdGrouping(unittest.TestCase):
         C, B & !C | !C & !D | !B & C & D
         D, !A & !B & !C & !D | !A & C & D
         """
-        expected_output = [[4, 5, 6, 7], [], [0, 1, 2], [3], [12, 14], [8, 10], [13, 15], [9, 11]]
+        expected_output = [[4, 5, 6, 7], [0, 1, 2], [3], [12, 14], [8, 10], [13, 15], [9, 11]]
         output = sd_grouping(bnet, DEBUG=True)
         self.assertEqual(output, expected_output)
 
@@ -161,9 +160,9 @@ class TestDivideListIntoSublists(unittest.TestCase):
 
 class TestRandomGrouping(unittest.TestCase):
     def test_valid_input(self):
-        sd_indexes = [[4, 5, 6, 7], [], [0, 1, 2], [3], [13, 15], [12, 14], [9, 11], [8, 10]]
-        null_indexes = [[0, 1, 2, 4, 5, 6, 7, 9, 11, 12, 13, 14, 15], [3], [8, 10]]
-        result = random_grouping(sd_indexes, null_indexes)
+        sd_indices = [[4, 5, 6, 7], [0, 1, 2], [3], [13, 15], [12, 14], [9, 11], [8, 10]]
+        null_indices = [[0, 1, 2, 4, 5, 6, 7, 9, 11, 12, 13, 14, 15], [3], [8, 10]]
+        result = random_grouping(sd_indices, null_indices)
         self.assertIsInstance(result, list)
         self.assertEqual(len(result), 7)
         self.assertTrue(all(len(sublist) >= 1 for sublist in result))
@@ -171,9 +170,9 @@ class TestRandomGrouping(unittest.TestCase):
         self.assertTrue([8, 10] in result)
 
     def test_debug_true(self):
-        sd_indexes = [[4, 5, 6, 7], [], [0, 1, 2], [3], [13, 15], [12, 14], [9, 11], [8, 10]]
-        null_indexes = [[0, 1, 2, 4, 5, 6, 7, 9, 11, 12, 13, 14, 15], [3], [8, 10]]
-        result = random_grouping(sd_indexes, null_indexes, DEBUG=True)
+        sd_indices = [[4, 5, 6, 7], [0, 1, 2], [3], [13, 15], [12, 14], [9, 11], [8, 10]]
+        null_indices = [[0, 1, 2, 4, 5, 6, 7, 9, 11, 12, 13, 14, 15], [3], [8, 10]]
+        result = random_grouping(sd_indices, null_indices, DEBUG=True)
         self.assertIsInstance(result, list)
         self.assertEqual(len(result), 7)
         self.assertTrue(all(len(sublist) >= 1 for sublist in result))
@@ -181,29 +180,29 @@ class TestRandomGrouping(unittest.TestCase):
         self.assertTrue([8, 10] in result)
 
     def test_invalid_input(self):
-        sd_indexes = [[5, 6, 7], [], [0, 1, 2], [3, 4], [13, 15], [12, 14], [9, 11], [8, 10]]
-        null_indexes = [[0, 1, 2, 4, 5, 6, 7, 9, 11, 12, 13, 14, 15], [3], [8, 10]]
+        sd_indices = [[5, 6, 7], [0, 1, 2], [3, 4], [13, 15], [12, 14], [9, 11], [8, 10]]
+        null_indices = [[0, 1, 2, 4, 5, 6, 7, 9, 11, 12, 13, 14, 15], [3], [8, 10]]
         with self.assertRaises(ValueError):
-            random_grouping(sd_indexes, null_indexes, DEBUG=True)
+            random_grouping(sd_indices, null_indices, DEBUG=True)
 
     def test_smallest_group_size_too_large(self):
-        sd_indexes = [[4, 5, 6, 7], [], [0, 1, 2], [3], [13, 15], [12, 14], [9, 11], [8, 10]]
-        null_indexes = [[0, 1, 2, 4, 5, 6, 7, 9, 11, 12, 13, 14, 15], [3], [8, 10]]
+        sd_indices = [[4, 5, 6, 7], [0, 1, 2], [3], [13, 15], [12, 14], [9, 11], [8, 10]]
+        null_indices = [[0, 1, 2, 4, 5, 6, 7, 9, 11, 12, 13, 14, 15], [3], [8, 10]]
         with self.assertRaises(ValueError):
-            random_grouping(sd_indexes, null_indexes, smallest_group_size=4)
+            random_grouping(sd_indices, null_indices, smallest_group_size=4)
 
     def test_empty_transient(self):
-        sd_indexes = [[], [0], [1, 2, 3]]
-        null_indexes = [[], [0], [1, 2, 3]]
-        expected_result = [[], [0], [1, 2, 3]]
-        result = random_grouping(sd_indexes, null_indexes)
+        sd_indices = [[0], [1, 2, 3]]
+        null_indices = [[0], [1, 2, 3]]
+        expected_result = [[0], [1, 2, 3]]
+        result = random_grouping(sd_indices, null_indices)
         self.assertEqual(result, expected_result)
 
     def test_seed_value(self):
-        sd_indexes = [[4, 5, 6, 7], [], [0, 1, 2], [3], [13, 15], [12, 14], [9, 11], [8, 10]]
-        null_indexes = [[0, 1, 2, 4, 5, 6, 7, 9, 11, 12, 13, 14, 15], [3], [8, 10]]
-        result1 = random_grouping(sd_indexes, null_indexes, seed=42)
-        result2 = random_grouping(sd_indexes, null_indexes, seed=42)
+        sd_indices = [[4, 5, 6, 7], [0, 1, 2], [3], [13, 15], [12, 14], [9, 11], [8, 10]]
+        null_indices = [[0, 1, 2, 4, 5, 6, 7, 9, 11, 12, 13, 14, 15], [3], [8, 10]]
+        result1 = random_grouping(sd_indices, null_indices, seed=42)
+        result2 = random_grouping(sd_indices, null_indices, seed=42)
         self.assertEqual(result1, result2)
 
 

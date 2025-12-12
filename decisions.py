@@ -1,31 +1,28 @@
 import numpy as np
 import networkx as nx
 
-from transition_matrix import get_stg
+from graph import get_stg, get_markov_chain
 from scc_dags import get_scc_dag, get_attractor_states
 from matrix_operations import nsquare
 
 def get_decision_matrix(
-    transition_matrix: np.ndarray, 
-    attractor_indexes: list[list[int]] = None, 
-    scc_dag: nx.DiGraph = None, 
-    stg: nx.DiGraph = None, 
+    transition_matrix: np.ndarray,
+    group_indices: list[list[int]] = None,
+    attractor_indices: list[list[int]] = None,
     DEBUG: bool = False,
 ) -> np.ndarray:
     """
     This function returns a matrix with the same shape as the transition matrix, 
-    where each entry is the decision matrix for the corresponding state.
+    where each entry encodes whether the corresponding transition is a decision.
 
     Parameters
     ----------
     transition_matrix : numpy array
-        The transition matrix. The entry at row i and column j is the probability of transitioning from state i to state j.
-    attractor_indexes : list[list[int]], optional
-        The indices of the attractor states in the transition matrix.
-    scc_dag : networkx DiGraph, optional
-        The SCC DAG.
-    stg : networkx DiGraph, optional
-        The state transition graph.
+        The transition matrix of a Markov chain. The entry at row i and column j is the probability of transitioning from state i to state j.
+    group_indices : list
+        A list of lists containing the indices that correspond to the states of the Boolean system in each group.
+    attractor_indices : list
+        A list of lists containing the indices that correspond to the states of the Markov chain in each attractor.
     DEBUG : bool, optional
         If set to True, performs additional checks on the input data.
 
@@ -47,46 +44,55 @@ def get_decision_matrix(
     If state i is has the same number of reachable attractors than state j, then basin_relation[i, j] = 0
         If this transition exists, then it is not a decision.
     """
+    if attractor_indices == None:
+        if group_indices == None:
+            stg = get_stg(transition_matrix, DEBUG=DEBUG)
+            scc_dag = get_scc_dag(stg)
+            attractor_indices = get_attractor_states(scc_dag, as_indices=True, DEBUG=DEBUG)
+        else:
+            markov_chain = get_markov_chain(transition_matrix, group_indices, DEBUG=DEBUG)
+            scc_dag = get_scc_dag(markov_chain)
+            attractor_indices = get_attractor_states(scc_dag, as_indices=True, as_groups=True, DEBUG=DEBUG)
 
-    # start with getting the stg
-    if attractor_indexes == None and scc_dag == None and stg == None:
-        stg = get_stg(transition_matrix, DEBUG=DEBUG)
+    if DEBUG:
+        # check if the attractor indices are between 0 and transition_matrix.shape[0]
+        for attractor in attractor_indices:
+            for index in attractor:
+                if index < 0 or index >= transition_matrix.shape[0]:
+                    raise ValueError(f"attractor indices must be between 0 and transition_matrix.shape[0] but got {index}")
 
-    # start with getting the scc dag
-    if attractor_indexes == None and scc_dag == None and stg != None:
-        scc_dag = get_scc_dag(stg)
+        # check if the attractor indices are unique
+        for attractor in attractor_indices:
+            if len(attractor) != len(set(attractor)):
+                raise ValueError("attractor indices must be unique")
 
-    # start with getting the attractor index
-    if attractor_indexes == None and scc_dag != None:
-        attractor_indexes = get_attractor_states(scc_dag, as_indexes=True, DEBUG=DEBUG)
-
-    # get the basins
+    # get the number of reachable attractors
     T_inf = nsquare(transition_matrix, 20, DEBUG=DEBUG)
 
-    basin = np.zeros((transition_matrix.shape[0], transition_matrix.shape[1]))
+    n_reachable_attractors = np.zeros((transition_matrix.shape[0], transition_matrix.shape[1]))
     for row in range(transition_matrix.shape[0]):
         reachable = 0
-        for attractor in attractor_indexes:
+        for attractor in attractor_indices:
             for index in attractor:
                 if T_inf[row, index] != 0:
                     reachable += 1
                     break
-        basin[row, :] = reachable
+        n_reachable_attractors[row, :] = reachable
     
     if DEBUG:
-        if np.any(basin==0):
+        if np.any(n_reachable_attractors==0):
             raise ValueError("a state must go into at least one attractor")
 
     # get the basin relation
-    basin_transpose = np.transpose(basin)
-    basin_relation = basin - basin_transpose
+    transpose = np.transpose(n_reachable_attractors)
+    n_reachable_relation = n_reachable_attractors - transpose
 
     # get the decision matrix
     # Define the conditions and corresponding values
     conditions = [
-        (transition_matrix != 0) & (basin_relation > 0),  # decision
-        (transition_matrix != 0) & (basin_relation == 0), # no decision
-        (transition_matrix != 0) & (basin_relation < 0),  # impossible
+        (transition_matrix != 0) & (n_reachable_relation > 0),  # decision
+        (transition_matrix != 0) & (n_reachable_relation == 0), # no decision
+        (transition_matrix != 0) & (n_reachable_relation < 0),  # impossible
         (transition_matrix == 0),                         # no transition
     ]
 
@@ -103,7 +109,9 @@ def get_decision_matrix(
 
 
 def expand_decision_matrix(
-    decision_matrix: np.ndarray, index_groups: list[list[int]], DEBUG: bool = False
+    decision_matrix: np.ndarray,
+    group_indices: list[list[int]],
+    DEBUG: bool = False
 ) -> np.ndarray:
     """
     Expand a compressed decision matrix by splitting certain rows and columns into multiple rows and columns.
@@ -112,7 +120,7 @@ def expand_decision_matrix(
     ----------
     decision_matrix : np.ndarray
         The compressed matrix to expand.
-    index_groups : list[list[int]]
+    group_indices : list[list[int]]
         A list of lists, same as the one used in the compress_matrix function.
     DEBUG : bool, optional
         If True, perform basic checks.
@@ -125,7 +133,7 @@ def expand_decision_matrix(
     Examples
     --------
     >>> matrix = np.array([[-1, 1], [0, -1]])
-    >>> index_groups = [[0, 1], [2]]
+    >>> group_indices = [[0, 1], [2]]
     >>> expanded_matrix = expand_decision_matrix(matrix, index_groups)
     >>> expanded_matrix
     array([[-1, -1,  1],
@@ -142,62 +150,51 @@ def expand_decision_matrix(
         if decision_matrix.shape[0] != decision_matrix.shape[1]:
             raise ValueError("Matrix must be square.")
 
+        # Check if there are any empty index groups
+        if any(len(group) == 0 for group in group_indices):
+            raise ValueError("Index groups cannot be empty.")
+
         # Check that index groups are mutually exclusive
-        for i in range(len(index_groups)):
-            for j in range(i + 1, len(index_groups)):
-                if set(index_groups[i]).intersection(set(index_groups[j])):
+        for i in range(len(group_indices)):
+            for j in range(i + 1, len(group_indices)):
+                if set(group_indices[i]).intersection(set(group_indices[j])):
                     raise ValueError("Index groups must be mutually exclusive.")
 
-        # Check that the number of non-empty index groups is not greater than the size of the matrix
-        non_empty_groups = [group for group in index_groups if group]
-        if len(non_empty_groups) > decision_matrix.shape[0]:
+        # Check that the number of index groups is not greater than the size of the matrix
+        if len(group_indices) != decision_matrix.shape[0]:
             raise ValueError(
-                "The number of non-empty index groups must be less than or equal to the size of the matrix."
+                "The number of index groups must be less equal to the size of the matrix."
             )
 
     compressed_matrix_dimension = len(decision_matrix)
 
-    all_indexes = []
-    for group in index_groups:
-        all_indexes.extend(group)
-
-    non_empty_groups = [group for group in index_groups if group]
+    all_indices = []
+    for group in group_indices:
+        all_indices.extend(group)
 
     expanded_matrix_dimension = (
-        compressed_matrix_dimension - len(non_empty_groups) + len(all_indexes)
+        compressed_matrix_dimension - len(group_indices) + len(all_indices)
     )
 
     row_expanded = np.zeros((expanded_matrix_dimension, compressed_matrix_dimension))
 
     j = 0
     for i in range(expanded_matrix_dimension):
-        if i not in all_indexes:
-            # First len(non_empty_groups) rows of the matrix are the compressed rows,
-            # and the rest are the not-compressed rows.
-            # Here restore the j-th not-compressed row.
-            row_expanded[i] = decision_matrix[len(non_empty_groups) + j]
-            j += 1
-        else:
-            for k, group in enumerate(non_empty_groups):
-                if i in group:
-                    row_expanded[i] = decision_matrix[k]
-                    break
+        if i not in all_indices:
+            raise ValueError("Missing index.")
+        for k, group in enumerate(group_indices):
+            if i in group:
+                row_expanded[i] = decision_matrix[k]
+                break
 
     expanded = np.zeros((expanded_matrix_dimension, expanded_matrix_dimension))
 
     j = 0
     for i in range(expanded_matrix_dimension):
-        if i not in all_indexes:
-            # First len(non_empty_groups) columns of the matrix are the compressed columns,
-            # and the rest are the not-compressed columns.
-            # Here restore the j-th not-compressed column.
-            expanded[:, i] = row_expanded[:, len(non_empty_groups) + j]
-            j += 1
-        else:
-            for k, group in enumerate(non_empty_groups):
-                if i in group:
-                    expanded[:, i] = row_expanded[:, k]
-                    break
+        for k, group in enumerate(group_indices):
+            if i in group:
+                expanded[:, i] = row_expanded[:, k]
+                break
 
     return expanded
 

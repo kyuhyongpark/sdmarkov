@@ -3,9 +3,9 @@ import unittest
 import networkx as nx
 import numpy as np
 
-from paths import get_all_paths, get_markov_chain_path_probs, get_stg_path_probs, solve_matrix_equation
+from paths import get_all_paths, get_all_shortest_paths, get_markov_chain_path_probs, get_stg_path_probs, solve_matrix_equation
 from paths import compare_path_reachability, compare_path_rmsd
-from transition_matrix import get_markov_chain
+from graph import get_markov_chain
 
 class TestGetAllPaths(unittest.TestCase):
     def test_empty_graph(self):
@@ -61,12 +61,79 @@ class TestGetAllPaths(unittest.TestCase):
                                                  [0.   , 0.    , 0.    , 0.    , 1.   , 0.    , 0.   ],
                                                  [0.   , 0.    , 0.    , 0.25  , 0.   , 0.625 , 0.125],
                                                  [0.   , 0.    , 0.    , 0.    , 0.25 , 0.    , 0.75 ]])
-        group_indexes = [[4, 5, 6, 7], [], [0, 1, 2], [3], [12, 14], [8, 10], [13, 15], [9, 11]]
-        markov_chain = get_markov_chain(compressed_transition_matrix, group_indexes)
+        group_indices = [[4, 5, 6, 7], [], [0, 1, 2], [3], [12, 14], [8, 10], [13, 15], [9, 11]]
+        markov_chain = get_markov_chain(compressed_transition_matrix, group_indices)
         all_paths = get_all_paths(markov_chain)
-        self.assertEqual(all_paths, [('0', '2'), ('0', '3'), ('0', '4'), ('0', '6'), ('4', '5'), ('6', '4'), ('6', '7'), ('7', '5'),
-                                     ('0', '4', '5'), ('0', '6', '4'), ('0', '6', '7'), ('6', '4', '5'), ('6', '7', '5'),
-                                     ('0', '6', '4', '5'), ('0', '6', '7', '5')])
+        self.assertEqual(all_paths, [('G0', 'G2'), ('G0', 'G3'), ('G0', 'G4'), ('G0', 'G6'), ('G4', 'G5'), ('G6', 'G4'), ('G6', 'G7'), ('G7', 'G5'),
+                                     ('G0', 'G4', 'G5'), ('G0', 'G6', 'G4'), ('G0', 'G6', 'G7'), ('G6', 'G4', 'G5'), ('G6', 'G7', 'G5'),
+                                     ('G0', 'G6', 'G4', 'G5'), ('G0', 'G6', 'G7', 'G5')])
+
+
+class TestGetAllShortestPaths(unittest.TestCase):
+    def test_empty_graph(self):
+        graph = nx.DiGraph()
+        self.assertEqual(get_all_shortest_paths(graph), [])
+
+    def test_graph_with_no_edges(self):
+        graph = nx.DiGraph()
+        graph.add_nodes_from([1, 2, 3])
+        self.assertEqual(get_all_shortest_paths(graph), [])
+
+    def test_graph_with_single_edge(self):
+        graph = nx.DiGraph()
+        graph.add_edge(1, 2)
+        expected_paths = [(1, 2)]
+        self.assertEqual(get_all_shortest_paths(graph), expected_paths)
+
+    def test_graph_with_multiple_edges_and_nodes(self):
+        graph = nx.DiGraph()
+        graph.add_edges_from([(1, 2), (2, 3), (1, 3)])
+        expected_paths = [(1, 2), (1, 3), (2, 3)]
+        self.assertEqual(get_all_shortest_paths(graph), expected_paths)
+
+    def test_graph_with_self_loops(self):
+        graph = nx.DiGraph()
+        graph.add_edges_from([(1, 1), (2, 2)])
+        expected_paths = []
+        self.assertEqual(get_all_shortest_paths(graph), expected_paths)
+
+    def test_graph_with_multiple_paths_between_two_nodes(self):
+        graph = nx.DiGraph()
+        graph.add_edges_from([(1, 2), (1, 3), (3, 2)])
+        expected_paths = [(1, 2), (1, 3), (3, 2)]
+        self.assertEqual(get_all_shortest_paths(graph), expected_paths)
+
+    def test_cutoff(self):
+        graph = nx.DiGraph()
+        graph.add_edges_from([(1, 2), (2, 3), (3, 4)])
+        expected_paths = [(1, 2), (2, 3), (3, 4), (1, 2, 3), (2, 3, 4)]
+        self.assertEqual(get_all_shortest_paths(graph, cutoff=2), expected_paths)
+
+    def test_debug_parameter_set_to_true(self):
+        graph = nx.DiGraph()
+        graph.add_edge(1, 2)
+        expected_paths = [(1, 2)]
+        self.assertEqual(get_all_shortest_paths(graph, DEBUG=True), expected_paths)
+
+    def test_debug_parameter_set_to_false(self):
+        graph = nx.DiGraph()
+        graph.add_edge(1, 2)
+        expected_paths = [(1, 2)]
+        self.assertEqual(get_all_shortest_paths(graph, DEBUG=False), expected_paths)
+
+    def test_example(self):
+        compressed_transition_matrix = np.array([[0.75 , 0.0625, 0.0625, 0.0625, 0.   , 0.0625, 0.   ],
+                                                 [0.   , 1.    , 0.    , 0.    , 0.   , 0.    , 0.   ],
+                                                 [0.   , 0.    , 1.    , 0.    , 0.   , 0.    , 0.   ],
+                                                 [0.   , 0.    , 0.    , 0.875 , 0.125, 0.    , 0.   ],
+                                                 [0.   , 0.    , 0.    , 0.    , 1.   , 0.    , 0.   ],
+                                                 [0.   , 0.    , 0.    , 0.25  , 0.   , 0.625 , 0.125],
+                                                 [0.   , 0.    , 0.    , 0.    , 0.25 , 0.    , 0.75 ]])
+        group_indices = [[4, 5, 6, 7], [], [0, 1, 2], [3], [12, 14], [8, 10], [13, 15], [9, 11]]
+        markov_chain = get_markov_chain(compressed_transition_matrix, group_indices)
+        shortest_paths = get_all_shortest_paths(markov_chain)
+        self.assertEqual(shortest_paths, [('G0', 'G2'), ('G0', 'G3'), ('G0', 'G4'), ('G0', 'G6'), ('G4', 'G5'), ('G6', 'G4'), ('G6', 'G7'), ('G7', 'G5'),
+                                          ('G0', 'G4', 'G5'), ('G0', 'G6', 'G7'), ('G6', 'G4', 'G5'), ('G6', 'G7', 'G5')])
 
 
 class TestGetMarkovChainPathProbs(unittest.TestCase):
@@ -147,13 +214,13 @@ class TestGetMarkovChainPathProbs(unittest.TestCase):
                                                  [0.   , 0.    , 0.    , 0.    , 1.   , 0.    , 0.   ],
                                                  [0.   , 0.    , 0.    , 0.25  , 0.   , 0.625 , 0.125],
                                                  [0.   , 0.    , 0.    , 0.    , 0.25 , 0.    , 0.75 ]])
-        group_indexes = [[4, 5, 6, 7], [], [0, 1, 2], [3], [12, 14], [8, 10], [13, 15], [9, 11]]
-        markov_chain = get_markov_chain(compressed_transition_matrix, group_indexes)
+        group_indices = [[4, 5, 6, 7], [], [0, 1, 2], [3], [12, 14], [8, 10], [13, 15], [9, 11]]
+        markov_chain = get_markov_chain(compressed_transition_matrix, group_indices)
         all_paths = get_all_paths(markov_chain)
         path_probabilities = get_markov_chain_path_probs(markov_chain, all_paths)
-        expected_result = {('0', '2'): np.float64(1/4), ('0', '3'): np.float64(1/4), ('0', '4'): np.float64(1/4), ('0', '6'): np.float64(1/4), ('4', '5'): np.float64(1), ('6', '4'): np.float64(2/3), ('6', '7'): np.float64(1/3), ('7', '5'): np.float64(1),
-                           ('0', '4', '5'): np.float64(1/4), ('0', '6', '4'): np.float64(1/6), ('0', '6', '7'): np.float64(1/12), ('6', '4', '5'): np.float64(2/3), ('6', '7', '5'): np.float64(1/3),
-                           ('0', '6', '4', '5'): np.float64(1/6), ('0', '6', '7', '5'): np.float64(1/12)}
+        expected_result = {('G0', 'G2'): np.float64(1/4), ('G0', 'G3'): np.float64(1/4), ('G0', 'G4'): np.float64(1/4), ('G0', 'G6'): np.float64(1/4), ('G4', 'G5'): np.float64(1), ('G6', 'G4'): np.float64(2/3), ('G6', 'G7'): np.float64(1/3), ('G7', 'G5'): np.float64(1),
+                           ('G0', 'G4', 'G5'): np.float64(1/4), ('G0', 'G6', 'G4'): np.float64(1/6), ('G0', 'G6', 'G7'): np.float64(1/12), ('G6', 'G4', 'G5'): np.float64(2/3), ('G6', 'G7', 'G5'): np.float64(1/3),
+                           ('G0', 'G6', 'G4', 'G5'): np.float64(1/6), ('G0', 'G6', 'G7', 'G5'): np.float64(1/12)}
         self.assertEqual(path_probabilities, expected_result)
 
 
@@ -186,8 +253,8 @@ class TestGetSTGPathProbs(unittest.TestCase):
                                       [0,   0,   0,   0,   0,   0,   0,   0,   0,   1],
                                       [0,   0,   0,   0,   0,   0,   0,   0,   1,   0]])
         group_indices = [[0, 1], [2, 3], [4, 5], [6, 7], [8, 9]]
-        all_paths = [('0', '1'), ('0', '2'), ('1', '3'), ('2', '3'), ('2', '4'),
-                     ('0', '1', '3'), ('0', '2', '3'), ('0', '2', '4')]
+        all_paths = [('G0', 'G1'), ('G0', 'G2'), ('G1', 'G3'), ('G2', 'G3'), ('G2', 'G4'),
+                     ('G0', 'G1', 'G3'), ('G0', 'G2', 'G3'), ('G0', 'G2', 'G4')]
         path_probabilities = get_stg_path_probs(all_paths, group_indices, None, transition_matrix)
         expected_result = {('0', '1'): np.float64(1/2), ('0', '2'): np.float64(1/2), ('1', '3'): np.float64(1), ('2', '3'): np.float64(1/2), ('2', '4'): np.float64(1/2),
                            ('0', '1', '3'): np.float64(1/2), ('0', '2', '3'): np.float64(1/4), ('0', '2', '4'): np.float64(1/4)}

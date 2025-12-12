@@ -1,188 +1,175 @@
 import numpy as np
-import networkx as nx
 
-from transition_matrix import get_stg
-from scc_dags import get_scc_dag, get_attractor_states
-from matrix_operations import nsquare
+from helper import check_transition_matrix
 
-def get_strong_basins(
-    transition_matrix: np.ndarray, 
-    attractor_indexes: list[list[int]] = None, 
-    scc_dag: nx.DiGraph = None, 
-    stg: nx.DiGraph = None, 
-    DEBUG: bool = False,
+
+def get_convergence_matrix(
+    T_inf_expanded: np.ndarray, 
+    attractor_indices: list[list[int]], 
+    DEBUG: bool = False
 ) -> np.ndarray:
     """
-    Get the strong basins of a Boolean network.
+    Compute the convergence matrix that represents the probability of reaching each attractor from each state.
 
     Parameters
     ----------
-    transition_matrix : numpy array
-        The transition matrix.
-    attractor_indexes : list[list[int]], optional
-        The indices of the attractor states in the transition matrix.
-    scc_dag : networkx DiGraph, optional
-        The SCC DAG.
-    stg : networkx DiGraph, optional
-        The state transition graph.
+    T_inf_expanded : np.ndarray
+        The transition matrix at t=inf. Note that this should be expanded to 2**N x 2**N.
+    attractor_indices : list of list of int
+        The indices of the attractor states.
     DEBUG : bool, optional
-        If set to True, performs additional checks.
+        If True, performs additional checks.
 
     Returns
     -------
-    strong_basin : numpy array
-        The strong basin for each state in the transition matrix.
+    convergence_matrix : np.ndarray
+        A matrix representing the probability of reaching each attractor from each state.
     """
 
-    # start with getting the stg
-    if attractor_indexes == None and scc_dag == None and stg == None:
-        stg = get_stg(transition_matrix, DEBUG=DEBUG)
+    if DEBUG:
+        # Check that the given matrix is a transition matrix
+        check_transition_matrix(T_inf_expanded)
+    
+        # Check that the attractor indices are valid
+        for attractor in attractor_indices:
+            for state in attractor:
+                if 0 > state or state >= T_inf_expanded.shape[0]:
+                    raise ValueError("The attractor indices must be valid.")
 
-    # start with getting the scc dag
-    if attractor_indexes == None and scc_dag == None and stg != None:
-        scc_dag = get_scc_dag(stg)
+        # Check that the attractor indices are mutually exclusive
+        for i in range(len(attractor_indices)):
+            for j in range(i + 1, len(attractor_indices)):
+                if set(attractor_indices[i]).intersection(set(attractor_indices[j])):
+                    raise ValueError("The attractor indices must be mutually exclusive.")
 
-    # start with getting the attractor index
-    if attractor_indexes == None and scc_dag != None:
-        attractor_indexes = get_attractor_states(scc_dag, as_indexes=True, DEBUG=DEBUG)
+    summed_columns = []
+    for attractor in attractor_indices:
+        summed = T_inf_expanded[:, attractor].sum(axis=1, keepdims=True)
+        summed_columns.append(summed)
 
-    # get the basins
-    T_inf = nsquare(transition_matrix, 20, DEBUG=DEBUG)
+    convergence_matrix = np.hstack(summed_columns, dtype=np.float64)
 
-    strong_basin = np.zeros((transition_matrix.shape[0], 1))
-    for row in range(transition_matrix.shape[0]):
-        single = False
-        multiple = False
-        for i, attractor in enumerate(attractor_indexes):
-            for index in attractor:
-                # the attractor can be reached
-                if T_inf[row, index] != 0:
-                    if single:
-                        multiple = True
-                    else:
-                        single = True
-                        attractor_index = i
-                    break
-        
-        if single and not multiple:
-            strong_basin[row] = attractor_index
-        else:
-            strong_basin[row] = -1
-        
-        if DEBUG and not single and not multiple:
-            raise ValueError(f"Must have at least one attractor for row {row}")
+    # Normalize the rows of the convergence matrix 
+    for i in range(convergence_matrix.shape[0]):
+        convergence_matrix[i, :] /= np.sum(convergence_matrix[i, :])
+
+
+    if DEBUG:
+        if convergence_matrix.shape[0] != len(T_inf_expanded):
+            raise ValueError("The number of states does not match the number of rows in the convergence matrix.")
+        if convergence_matrix.shape[1] != len(attractor_indices):
+            raise ValueError("The number of attractors does not match the number of columns in the convergence matrix.")
+
+    return convergence_matrix
+
+
+def get_strong_basins(
+    convergence_matrix: np.ndarray,
+    DEBUG: bool = False,
+) -> np.ndarray:
+    """
+    Computes whether each state belong to a strong basin.
+
+    Parameters
+    ----------
+    convergence_matrix : numpy array
+        A matrix that represents the probability of reaching each attractor from each state
+    DEBUG : bool, optional
+        If True, performs additional checks on the input data.
+
+    Returns
+    -------
+    strong_basins : numpy array, shape (2**N, 1)
+        If the state is in a strong basin, the value is 1.
+        If the state is in a weak basin instead, the value is 0.
+    """
+    if DEBUG:
+        check_transition_matrix(convergence_matrix, partial=True)
+
+    strong_basin = np.zeros((convergence_matrix.shape[0], 1))
+    for row in range(convergence_matrix.shape[0]):
+        # if row has a single non-zero element
+        if np.count_nonzero(convergence_matrix[row]) == 1:
+            strong_basin[row] = 1
 
     return strong_basin
 
 
-def expand_strong_basin_matrix(
-    strong_basin: np.ndarray, index_groups: list[list[int]], DEBUG: bool = False
+def get_basin_ratios(
+    convergence_matrix: np.ndarray,
+    DEBUG: bool = False,
+) -> tuple[np.ndarray, list[list[str]]]:
+    """
+    Calculate the ratio of the size of each basin to the total number of states.
+
+    Parameters
+    ----------
+    convergence_matrix : numpy array
+        The probability of reaching each attractor from each state.
+        Note that this should be 2**N x A.
+    DEBUG : bool, optional
+        If True, performs additional checks.
+
+    Returns
+    -------
+    basin_ratio : 2D numpy array
+        The probability of reaching each attractor.
+        Note that it is 2D for compatibility with other functions.
+        Each row must sum to 1.
+    """
+
+    if DEBUG:
+        check_transition_matrix(convergence_matrix, partial=True)
+
+    basin_ratios = np.mean(convergence_matrix, axis=0, keepdims=True)
+
+    # Normalize the basin ratios
+    basin_ratios /= basin_ratios.sum()
+
+    return basin_ratios
+
+
+def get_node_average_values(
+    T_inf_expanded: np.ndarray,
+    DEBUG: bool = False
 ) -> np.ndarray:
     """
-    Expand a compressed strong basin matrix by repeating certain rows into multiple rows.
+    Compute the average value of each node, given the transition matrix at t=inf.
 
     Parameters
     ----------
-    strong_basin : np.ndarray
-        The compressed matrix to expand.
-    index_groups : list[list[int]]
-        A list of index groups, where each group specifies the rows and columns
-        to be merged into a single row and column.
+    T_inf_expanded : numpy array
+        The transition matrix at t=inf. Note that this should be 2**N x 2**N.
     DEBUG : bool, optional
-        If True, perform basic checks.
+        If True, performs additional checks.
 
     Returns
     -------
-    numpy.ndarray
-        The expanded matrix.
-
-    """
-    if DEBUG:
-        # Check that index groups are mutually exclusive
-        for i in range(len(index_groups)):
-            for j in range(i + 1, len(index_groups)):
-                if set(index_groups[i]).intersection(set(index_groups[j])):
-                    raise ValueError("Index groups must be mutually exclusive.")
-
-        # Check that the number of non-empty index groups is not greater than the size of the matrix
-        non_empty_groups = [group for group in index_groups if group]
-        if len(non_empty_groups) > strong_basin.shape[0]:
-            raise ValueError(
-                "The number of non-empty index groups must be less than or equal to the size of the matrix."
-            )
-
-    compressed_matrix_dimension = len(strong_basin)
-
-    all_indexes = []
-    for group in index_groups:
-        all_indexes.extend(group)
-
-    non_empty_groups = [group for group in index_groups if group]
-
-    expanded_matrix_dimension = (
-        compressed_matrix_dimension - len(non_empty_groups) + len(all_indexes)
-    )
-
-    expanded = np.zeros((expanded_matrix_dimension, 1))
-
-    j = 0
-    for i in range(expanded_matrix_dimension):
-        if i not in all_indexes:
-            # First len(non_empty_groups) rows of the matrix are the compressed rows,
-            # and the rest are the not-compressed rows.
-            # Here restore the j-th not-compressed row.
-            expanded[i] = strong_basin[len(non_empty_groups) + j]
-            j += 1
-        else:
-            for k, group in enumerate(non_empty_groups):
-                if i in group:
-                    expanded[i] = strong_basin[k]
-                    break
-
-    return expanded
-
-
-def compare_strong_basins(
-    answer: np.ndarray, 
-    guess: np.ndarray, 
-    DEBUG: bool = False
-) -> tuple[int, int, int, int]:
-    """
-    Calculate the true positives, false positives, true negatives, and false negatives
-    between two matrices, `answer` and `guess`.
-
-    Parameters
-    ----------
-    answer : np.ndarray
-        The ground truth matrix.
-    guess : np.ndarray
-        The predicted matrix.
-    DEBUG : bool, optional
-        If True, perform basic checks.
-
-    Returns
-    -------
-    tuple of int
-        A tuple containing four integers: (TP, FP, TN, FN)
-        - TP: Number of true positives
-        - FP: Number of false positives
-        - TN: Number of true negatives
-        - FN: Number of false negatives
+    node_average_values : numpy array, shape (1, N)
+        The average value of each node.
     """
 
     if DEBUG:
-        # Check that the matrices have the same shape
-        if answer.shape != guess.shape:
-            raise ValueError("The matrices must have the same shape.")
+        check_transition_matrix(T_inf_expanded)
 
-    # Define the conditions for each category
-    TP = np.sum((answer != -1) & (guess != -1))  # True positives
-    FP = np.sum((answer == -1) & (guess != -1))  # False positives
-    TN = np.sum((answer == -1) & (guess == -1))  # True negatives
-    FN = np.sum((answer == 1) & (guess == -1))  # False negatives
+    N = int(np.log2(T_inf_expanded.shape[0]))
 
-    if DEBUG:
-        if FP > 0:
-            raise ValueError("Markov chain should not have false positives.")
+    state_prob = np.mean(T_inf_expanded, axis=0)
 
-    return TP, FP, TN, FN
+    node_average_values = np.zeros(N)
+
+    for i, prob in enumerate(state_prob):
+        if prob != 0:
+            # convert i into binary string
+            state_str = bin(i)[2:].zfill(N)
+            state_value = np.array([float(state_str[j]) for j in range(N)])
+            contribution = prob * state_value
+            node_average_values += contribution
+
+    # if any value is greater than 1, set it to 1
+    node_average_values[node_average_values > 1] = 1
+
+    # turn it into a (1, N) array
+    node_average_values = np.expand_dims(node_average_values, axis=0)
+
+    return node_average_values
