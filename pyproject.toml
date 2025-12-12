@@ -1,9 +1,8 @@
-[build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
-
 [project]
-authors = [{ name = "Kyu Hyong Park", email = "kjp5774@psu.edu" }]
+name = "sdmarkov"
+version = "0.1.0"
+description = "Tools for generaing coarse-grained Markov chain for Boolean networks"
+authors = [{ name = "Kyu Hyong Park", email = "kyuhyongpark@gmail.com" }]
 readme = "README.md"
 license = { file = "LICENSE" }
 dependencies = [
@@ -12,3 +11,13 @@ dependencies = [
     "pyboolnet @ git+https://github.com/hklarner/pyboolnet",
     "pystablemotifs",
 ]
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
