@@ -52,6 +52,52 @@ def get_all_paths(markov_chain: nx.DiGraph, DEBUG: bool = False) -> list[tuple]:
 
     return all_paths
 
+
+def get_all_shortest_paths(markov_chain: nx.DiGraph, cutoff: int = 0, to_attractors: bool = False, DEBUG: bool = False) -> list[tuple]:
+    """
+    Retrieve all unique simple edge paths in a Markov chain.
+
+    This function computes all simple edge paths between distinct pairs of nodes
+    in the given Markov chain. It ensures that the paths are unique, sorted
+    first by their length and then lexicographically.
+
+    Parameters
+    ----------
+    markov_chain : networkx DiGraph
+        The Markov chain represented as a directed graph.
+    cutoff : int, optional
+        The maximum length of the paths to consider.
+    DEBUG : bool, optional
+        If set to True, performs additional checks on the input data.
+
+    Returns
+    -------
+    all_paths : list of tuples
+        A list of tuples, each representing a unique simple path in the
+        Markov chain. Each path is represented as a tuple of nodes.
+    """
+
+    shortest_paths = set()
+    for source in markov_chain.nodes:
+        for target in markov_chain.nodes:
+            if source == target:
+                continue
+            
+            try:
+                current_cutoff = cutoff+1
+                for path in nx.shortest_simple_paths(markov_chain, source, target):
+                    if current_cutoff != 1 and len(path) > current_cutoff:
+                        break
+                    shortest_paths.add(tuple(path))
+                    current_cutoff = max(len(path), cutoff+1)
+            except nx.NetworkXNoPath:
+                continue
+
+    shortest_paths = sorted(list(shortest_paths), key=lambda x: (len(x), *x))
+
+    return shortest_paths
+
+
 def get_markov_chain_path_probs(markov_chain: nx.DiGraph, all_paths: list[tuple]|None=None, DEBUG: bool = False) -> dict[tuple, float]:
     """
     Compute the probabilities of all unique simple edge paths in a Markov chain.
@@ -144,8 +190,8 @@ def get_stg_path_probs(all_paths: list[tuple], group_indices: list[list[int]], s
         if len(path) != 2:
             continue
 
-        G1 = group_indices[int(path[0])]
-        G2 = group_indices[int(path[1])]
+        G1 = group_indices[int(path[0][1:])]
+        G2 = group_indices[int(path[1][1:])]
 
         A = transition_matrix[G1, :][:, G1]
         B = transition_matrix[G1, :][:, G2]
