@@ -120,7 +120,6 @@ def plot_violin_figure(
     plt.tight_layout(rect=(0, 0, 1, 1))
     return fig
 
-
 def plot_distribution_figure(
     df,
     metrics,
@@ -224,7 +223,7 @@ def plot_distribution_figure(
     fig.legend(
         handles, labels,
         loc="upper center",
-        bbox_to_anchor=(0.5, 0.97),
+        bbox_to_anchor=(0.5, 0.955),
         ncol=len(handles),
     )
 

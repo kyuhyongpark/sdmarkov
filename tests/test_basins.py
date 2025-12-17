@@ -5,7 +5,7 @@ from pyboolnet.external.bnet2primes import bnet_text2primes
 from pyboolnet.state_transition_graphs import primes2stg
 
 from sdmarkov.attractors import get_predicted_attractors
-from sdmarkov.basins import get_convergence_matrix, get_strong_basins, get_basin_ratios, get_node_average_values
+from sdmarkov.basins import get_convergence_matrix, get_strong_basins, get_basin_fractions, get_average_node_values
 from sdmarkov.grouping import sd_grouping, null_grouping
 from sdmarkov.matrix_operations import nsquare, compress_matrix, expand_matrix
 from sdmarkov.transition_matrix import get_transition_matrix
@@ -198,13 +198,13 @@ class TestGetStrongBasins(unittest.TestCase):
 class TestGetBasinRatios(unittest.TestCase):
     def test_simple_transition_matrix(self):
         convergence_matrix = np.array([[0, 1], [0, 1]])
-        basin_ratios = get_basin_ratios(convergence_matrix)
+        basin_ratios = get_basin_fractions(convergence_matrix)
         expected_basin_ratios = np.array([[0, 1]])
         self.assertTrue(np.allclose(basin_ratios, expected_basin_ratios))
 
     def test_with_debug(self):
         convergence_matrix = np.array([[0, 1], [0, 1]])
-        basin_ratios = get_basin_ratios(convergence_matrix, DEBUG=True)
+        basin_ratios = get_basin_fractions(convergence_matrix, DEBUG=True)
         expected_basin_ratios = np.array([[0, 1]])
         self.assertTrue(np.allclose(basin_ratios, expected_basin_ratios))
 
@@ -228,27 +228,27 @@ class TestGetBasinRatios(unittest.TestCase):
         attractor_indices = get_predicted_attractors(transition_matrix, as_indices=True, DEBUG=True)
         convergence_matrix = get_convergence_matrix(T_inf, attractor_indices, DEBUG=True)
 
-        basin_ratios = get_basin_ratios(convergence_matrix, DEBUG=True)
+        basin_ratios = get_basin_fractions(convergence_matrix, DEBUG=True)
         expected_basin_ratios = np.array([[0.275, 0.1, 0.625]])
 
         self.assertTrue(np.allclose(basin_ratios, expected_basin_ratios))
 
 
-class TestGetNodeAverageValues(unittest.TestCase):
+class TestGetAverageNodeValues(unittest.TestCase):
     def test_2x2_transition_matrix(self):
         T_inf_expanded = np.array([[0.5, 0.5], [0.5, 0.5]])
         expected_result = np.array([[0.5]])
-        self.assertTrue(np.allclose(get_node_average_values(T_inf_expanded), expected_result))
+        self.assertTrue(np.allclose(get_average_node_values(T_inf_expanded), expected_result))
 
     def test_2x2_transition_matrix2(self):
         T_inf_expanded = np.array([[1, 0], [0, 1]])
         expected_result = np.array([[0.5]])
-        self.assertTrue(np.allclose(get_node_average_values(T_inf_expanded), expected_result))
+        self.assertTrue(np.allclose(get_average_node_values(T_inf_expanded), expected_result))
 
     def test_2x2_transition_matrix2(self):
         T_inf_expanded = np.array([[0, 1], [0, 1]])
         expected_result = np.array([[1]])
-        self.assertTrue(np.allclose(get_node_average_values(T_inf_expanded), expected_result))
+        self.assertTrue(np.allclose(get_average_node_values(T_inf_expanded), expected_result))
 
     def test_4x4_transition_matrix(self):
         T_inf_expanded = np.array([[0.25, 0.25, 0.25, 0.25], 
@@ -256,7 +256,7 @@ class TestGetNodeAverageValues(unittest.TestCase):
                                    [0.25, 0.25, 0.25, 0.25], 
                                    [0.25, 0.25, 0.25, 0.25]])
         expected_result = np.array([[0.5, 0.5]])
-        self.assertTrue(np.allclose(get_node_average_values(T_inf_expanded), expected_result))
+        self.assertTrue(np.allclose(get_average_node_values(T_inf_expanded), expected_result))
 
     def test_4x4_transition_matrix2(self):
         T_inf_expanded = np.array([[1, 0, 0, 0], 
@@ -264,22 +264,22 @@ class TestGetNodeAverageValues(unittest.TestCase):
                                    [0, 0, 1, 0], 
                                    [0, 0, 0, 1]])
         expected_result = np.array([[0.5, 0.5]])
-        self.assertTrue(np.allclose(get_node_average_values(T_inf_expanded), expected_result))
+        self.assertTrue(np.allclose(get_average_node_values(T_inf_expanded), expected_result))
 
     def test_non_square_transition_matrix(self):
         T_inf_expanded = np.array([[0.5, 0.5], [0.5, 0.5], [0.5, 0.5]])
         with self.assertRaises(ValueError):
-            get_node_average_values(T_inf_expanded, DEBUG=True)
+            get_average_node_values(T_inf_expanded, DEBUG=True)
 
     def test_invalid_transition_matrix(self):
         T_inf_expanded = np.array([[0.5, 0.5], [0.5, 1.5]])
         with self.assertRaises(ValueError):
-            get_node_average_values(T_inf_expanded, DEBUG=True)
+            get_average_node_values(T_inf_expanded, DEBUG=True)
 
     def test_debug_true(self):
         T_inf_expanded = np.array([[0.5, 0.5], [0.5, 0.5]])
         expected_result = np.array([[0.5]])
-        self.assertTrue(np.allclose(get_node_average_values(T_inf_expanded, DEBUG=True), expected_result))
+        self.assertTrue(np.allclose(get_average_node_values(T_inf_expanded, DEBUG=True), expected_result))
 
     def test_example(self):
         bnet = """
@@ -300,7 +300,7 @@ class TestGetNodeAverageValues(unittest.TestCase):
         T = get_transition_matrix(stg, update=update, DEBUG=DEBUG)
         T_inf = nsquare(T, 20, DEBUG=DEBUG)
 
-        T_node_average_values = get_node_average_values(T_inf, DEBUG=DEBUG)
+        T_node_average_values = get_average_node_values(T_inf, DEBUG=DEBUG)
 
         expected_T_node_average_values = np.array([[0.625, 0, 0.504, 0.192]])
 
