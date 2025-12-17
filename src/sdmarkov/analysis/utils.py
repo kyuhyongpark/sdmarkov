@@ -64,7 +64,7 @@ def load_or_generate_data(
             bnet=content,
             bnet_name=filename,
             update=update,
-            num_runs=n_random,
+            n_random=n_random,
             DEBUG=debug,
         )
 

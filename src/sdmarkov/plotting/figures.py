@@ -23,6 +23,8 @@ def plot_violin_figure(
     methods=None,
     figsize=(6, 3),
     lim=(0, 1),  # default for all metrics
+    title_loc=0.93,
+    layout_top=1,
 ):
     """
     Main-paper violin plot figure.
@@ -115,9 +117,9 @@ def plot_violin_figure(
     if figure_id is not None:
         title = pc.FIGURE_TITLES.get(figure_id)
         if title is not None:
-            fig.suptitle(title, y=0.93)
+            fig.suptitle(title, y=title_loc)
 
-    plt.tight_layout(rect=(0, 0, 1, 1))
+    plt.tight_layout(rect=(0, 0, 1, layout_top))
     return fig
 
 def plot_distribution_figure(
