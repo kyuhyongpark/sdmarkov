@@ -128,6 +128,9 @@ def plot_distribution_figure(
     figure_id=None,
     figsize=(10, 4),
     lim=(0, 1),
+    title_loc=1,
+    legend_loc=0.955,
+    layout_top=0.98,
 ):
     """
     Plot KDE and ECDF distributions for multiple metrics and methods.
@@ -223,7 +226,7 @@ def plot_distribution_figure(
     fig.legend(
         handles, labels,
         loc="upper center",
-        bbox_to_anchor=(0.5, 0.955),
+        bbox_to_anchor=(0.5, legend_loc),
         ncol=len(handles),
     )
 
@@ -231,9 +234,9 @@ def plot_distribution_figure(
     if figure_id is not None:
         title = pc.FIGURE_TITLES.get(figure_id)
         if title is not None:
-            fig.suptitle(title, y=1)
+            fig.suptitle(title, y=title_loc)
 
-    plt.tight_layout(rect=(0, 0, 1, 0.98))
+    plt.tight_layout(rect=(0, 0, 1, layout_top))
     return fig
 
 def save_figure(
