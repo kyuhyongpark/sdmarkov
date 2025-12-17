@@ -22,31 +22,48 @@ def plot_violin_figure(
     figure_id=None,
     methods=None,
     figsize=(6, 3),
-    lim=(0, 1),
+    lim=(0, 1),  # default for all metrics
 ):
     """
     Main-paper violin plot figure.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Data containing metrics.
+    metrics : list[str]
+        List of metric column names to plot.
+    figure_id : str | None
+        Optional figure title ID.
+    methods : list[str] | None
+        Methods to plot. If None, use default order.
+    figsize : tuple
+        Figure size.
+    lim : tuple or dict
+        If tuple: (lo, hi) applied to all metrics.
+        If dict: {metric_name: (lo, hi)} allows per-metric limits.
     """
 
     if methods is None:
         methods = pc.METHOD_ORDER
 
     n_metrics = len(metrics)
-
-    # --- vertical layout: one metric per row ---
     fig, axes = plt.subplots(
         n_metrics,
         1,
         figsize=(figsize[0], figsize[1] * n_metrics),
         sharex=True,
     )
-
     if n_metrics == 1:
         axes = [axes]
 
-    lo, hi = lim
-
     for ax, metric in zip(axes, metrics):
+        # Determine the limits for this metric
+        if isinstance(lim, dict):
+            lo, hi = lim.get(metric, (0, 1))
+        else:
+            lo, hi = lim
+
         arrays = _metric_arrays(df, metric, methods)
         colors = [pc.get_method_style(m)["color"] for m in methods]
 
@@ -58,7 +75,7 @@ def plot_violin_figure(
                 n_bad = np.sum((arr < lo) | (arr > hi))
                 warnings.warn(
                     f"[plot_violin_figure] Metric '{metric}', method '{method}': "
-                    f"{n_bad} values outside limits {lim}.",
+                    f"{n_bad} values outside limits {(lo, hi)}.",
                     RuntimeWarning,
                 )
 
@@ -92,10 +109,9 @@ def plot_violin_figure(
         )
 
         ax.set_ylabel(pc.METRIC_Y_LABELS.get(metric, metric))
-        ax.set_ylim(lim)
+        ax.set_ylim(lo, hi)
         ax.grid(True, alpha=0.4)
 
-    # --- global figure title ---
     if figure_id is not None:
         title = pc.FIGURE_TITLES.get(figure_id)
         if title is not None:
@@ -103,6 +119,7 @@ def plot_violin_figure(
 
     plt.tight_layout(rect=(0, 0, 1, 1))
     return fig
+
 
 def plot_distribution_figure(
     df,
@@ -113,6 +130,10 @@ def plot_distribution_figure(
     figsize=(10, 4),
     lim=(0, 1),
 ):
+    """
+    Plot KDE and ECDF distributions for multiple metrics and methods.
+    Supports per-metric y/x-axis limits via a dict.
+    """
     if methods is None:
         methods = pc.METHOD_ORDER
 
@@ -127,20 +148,24 @@ def plot_distribution_figure(
     if n_metrics == 1:
         axes = np.array([axes])
 
-    lo, hi = lim
-
     for (ax_kde, ax_ecdf), metric in zip(axes, metrics):
         arrays = _metric_arrays(df, metric, methods)
+
+        # --- get per-metric limits ---
+        if isinstance(lim, dict):
+            lo, hi = lim.get(metric, (0, 1))
+        else:
+            lo, hi = lim
 
         # --- bounds check ---
         for method, arr in zip(methods, arrays):
             if len(arr) == 0:
                 continue
-            if np.any(arr < lo) or np.any(arr > hi):
-                n_bad = np.sum((arr < lo) | (arr > hi))
+            n_bad = np.sum((arr < lo) | (arr > hi))
+            if n_bad > 0:
                 warnings.warn(
-                    f"[plot_violin_figure] Metric '{metric}', method '{method}': "
-                    f"{n_bad} values outside limits {lim}.",
+                    f"[plot_distribution_figure] Metric '{metric}', method '{method}': "
+                    f"{n_bad} values outside limits {(lo, hi)}.",
                     RuntimeWarning,
                 )
 
@@ -156,10 +181,10 @@ def plot_distribution_figure(
                 color=style["color"],
                 linestyle=style["linestyle"],
                 alpha=style["alpha"],
-                clip=lim,
+                clip=(lo, hi),
             )
 
-        ax_kde.set_xlim(lim)
+        ax_kde.set_xlim(lo, hi)
         ax_kde.set_xlabel(pc.METRIC_X_LABELS.get(metric, metric))
         ax_kde.set_yticks([])
         ax_kde.set_ylabel("")
@@ -172,13 +197,12 @@ def plot_distribution_figure(
             style = pc.get_method_style(m)
             x = np.sort(arr)
             y = np.arange(1, len(arr) + 1) / len(arr)
-
+            # prepend (0,0)
             x = np.insert(x, 0, 0)
             y = np.insert(y, 0, 0)
-
-            x = np.append(x, 1)
+            # append (max_x_value, 1)
+            x = np.append(x, hi)
             y = np.append(y, 1)
-
             ax_ecdf.plot(
                 x, y,
                 label=style["label"],
@@ -187,12 +211,10 @@ def plot_distribution_figure(
                 alpha=style["alpha"],
             )
 
-        ax_ecdf.set_xlim(lim)
+        ax_ecdf.set_xlim(lo, hi)
         ax_ecdf.set_xlabel(pc.METRIC_X_LABELS.get(metric, metric))
         ax_ecdf.set_ylim(0, 1)
-        ax_ecdf.set_ylabel(
-            f"P({pc.METRIC_Y_LABELS.get(metric, metric)} ≤ x)"
-        )
+        ax_ecdf.set_ylabel(f"P({pc.METRIC_Y_LABELS.get(metric, metric)} ≤ x)")
         ax_ecdf.grid(True, alpha=0.4)
 
     # Get handles and labels from the last ECDF axis
@@ -214,9 +236,6 @@ def plot_distribution_figure(
 
     plt.tight_layout(rect=(0, 0, 1, 0.98))
     return fig
-
-
-
 
 def save_figure(
     fig,
