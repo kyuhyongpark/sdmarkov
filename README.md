@@ -14,9 +14,12 @@ pyboolnet https://github.com/hklarner/pyboolnet
 Networkx (v2.4+) https://github.com/networkx/networkx/  
 
 ## Documentation
+
+The Jupyter Notebook `example.ipynb` provides a usage example of our code.
+
 The `models/random_nk3`  directory lists the 100 Boolean networks used to evaluate the effectiveness of the SD Markov chain. Each file contains the Boolean functions of the nodes in bnet format. 
 
-The  `notebooks` directory contains Jupyter Notebooks for generating random Boolean networks, for construction and basic analysis of the SD Markov chain, and for each type of evaluation of the SD Markov chain. 
+The  `notebooks` directory contains Jupyter Notebooks for generating random Boolean networks, for the construction and basic analysis of the SD Markov chain, and for each type of evaluation of the SD Markov chain. 
 
 The `results` directory contains the results of the analyses as .csv files.
 
