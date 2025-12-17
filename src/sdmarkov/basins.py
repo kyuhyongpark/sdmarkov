@@ -95,7 +95,7 @@ def get_strong_basins(
     return strong_basin
 
 
-def get_basin_ratios(
+def get_basin_fractions(
     convergence_matrix: np.ndarray,
     DEBUG: bool = False,
 ) -> tuple[np.ndarray, list[list[str]]]:
@@ -112,7 +112,7 @@ def get_basin_ratios(
 
     Returns
     -------
-    basin_ratio : 2D numpy array
+    basin_fractions : 2D numpy array
         The probability of reaching each attractor.
         Note that it is 2D for compatibility with other functions.
         Each row must sum to 1.
@@ -121,15 +121,15 @@ def get_basin_ratios(
     if DEBUG:
         check_transition_matrix(convergence_matrix, partial=True)
 
-    basin_ratios = np.mean(convergence_matrix, axis=0, keepdims=True)
+    basin_fractions = np.mean(convergence_matrix, axis=0, keepdims=True)
 
     # Normalize the basin ratios
-    basin_ratios /= basin_ratios.sum()
+    basin_fractions /= basin_fractions.sum()
 
-    return basin_ratios
+    return basin_fractions
 
 
-def get_node_average_values(
+def get_average_node_values(
     T_inf_expanded: np.ndarray,
     DEBUG: bool = False
 ) -> np.ndarray:
@@ -145,7 +145,7 @@ def get_node_average_values(
 
     Returns
     -------
-    node_average_values : numpy array, shape (1, N)
+    average_node_values : numpy array, shape (1, N)
         The average value of each node.
     """
 
@@ -156,7 +156,7 @@ def get_node_average_values(
 
     state_prob = np.mean(T_inf_expanded, axis=0)
 
-    node_average_values = np.zeros(N)
+    average_node_values = np.zeros(N)
 
     for i, prob in enumerate(state_prob):
         if prob != 0:
@@ -164,12 +164,12 @@ def get_node_average_values(
             state_str = bin(i)[2:].zfill(N)
             state_value = np.array([float(state_str[j]) for j in range(N)])
             contribution = prob * state_value
-            node_average_values += contribution
+            average_node_values += contribution
 
     # if any value is greater than 1, set it to 1
-    node_average_values[node_average_values > 1] = 1
+    average_node_values[average_node_values > 1] = 1
 
     # turn it into a (1, N) array
-    node_average_values = np.expand_dims(node_average_values, axis=0)
+    average_node_values = np.expand_dims(average_node_values, axis=0)
 
-    return node_average_values
+    return average_node_values

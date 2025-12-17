@@ -365,7 +365,14 @@ def get_rms_diff(A: np.ndarray, B: np.ndarray, compressed: bool = False, partial
         return np.mean(rms_diff)
 
 
-def get_dkl(A: np.ndarray, B: np.ndarray, compressed: bool = False, partial: bool = False, row_wise_average: bool = False, DEBUG: bool = False) -> float:
+def get_kld(
+    A: np.ndarray,
+    B: np.ndarray,
+    compressed: bool = False,
+    partial: bool = False,
+    row_wise_average: bool = True,
+    DEBUG: bool = False
+) -> float:
     """
     Calculate the Kullback-Leibler divergence between two stochastic matrices A and B.
 
@@ -381,8 +388,10 @@ def get_dkl(A: np.ndarray, B: np.ndarray, compressed: bool = False, partial: boo
     partial : bool, optional
         If True, the matrices are partial,
         and number of rows/columns don't need to be 2^N,
-        the matrixes don't need to be square,
+        the matrices don't need to be square,
         and each row doesn't need to sum to 1.
+    row_wise_average : bool, optional
+        If True, calculate the average of the row-wise KL divergence.
     DEBUG : bool, optional
         If True, perform basic checks.
 
@@ -395,7 +404,7 @@ def get_dkl(A: np.ndarray, B: np.ndarray, compressed: bool = False, partial: boo
     --------
     >>> A = np.array([[1, 0], [0, 1]])
     >>> B = np.array([[1, 0], [1/2, 1/2]])
-    >>> get_dkl(A, B)
+    >>> get_kld(A, B)
     0.69314718055994530941723212145818
     """
 
@@ -404,7 +413,7 @@ def get_dkl(A: np.ndarray, B: np.ndarray, compressed: bool = False, partial: boo
         if A.shape != B.shape:
             raise ValueError("The matrices must have the same shape.")
 
-        # The dimension of the matricies should be 2
+        # The dimension of the matrices should be 2
         if A.ndim != 2:
             raise ValueError("The matrices must be 2-dimensional.")
 
@@ -422,22 +431,22 @@ def get_dkl(A: np.ndarray, B: np.ndarray, compressed: bool = False, partial: boo
     lost_information = A * np.log(ratio, out=np.zeros_like(A, dtype=float), where=ratio!=0.0)
     
     # Calculate the Kullback-Leibler divergence by summing over each row
-    dkl = np.sum(lost_information, axis=1)
+    kld = np.sum(lost_information, axis=1)
 
-    # Each value in dkl should be non-negative
-    dkl = np.maximum(dkl, 0.0)
+    # Each value in kld should be non-negative
+    kld = np.maximum(kld, 0.0)
 
     if not row_wise_average:
         # Calculate the total KL divergence
-        total_dkl = np.sum(dkl)
+        total_kld = np.sum(kld)
 
-        return total_dkl
+        return total_kld
 
     else:
         # Calculate the average KL divergence
-        average_dkl = np.mean(dkl)
+        average_kld = np.mean(kld)
 
-        return average_dkl
+        return average_kld
 
 
 def get_confusion_matrix(

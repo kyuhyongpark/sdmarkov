@@ -4,7 +4,7 @@ import numpy as np
 
 from sdmarkov.matrix_operations import reorder_matrix
 from sdmarkov.matrix_operations import compress_matrix, expand_matrix
-from sdmarkov.matrix_operations import get_rms_diff, get_dkl, get_confusion_matrix
+from sdmarkov.matrix_operations import get_rms_diff, get_kld, get_confusion_matrix
 from sdmarkov.matrix_operations import get_reachability
 from sdmarkov.matrix_operations import is_block_triangular, get_block_triangular
 from sdmarkov.matrix_operations import enforce_asynchronous
@@ -278,40 +278,40 @@ class TestGetRmsDiff(unittest.TestCase):
         with self.assertRaises(ValueError):
             get_rms_diff(A, B, DEBUG=True)
 
-class TestGetDKL(unittest.TestCase):
+class TestGetKLD(unittest.TestCase):
 
     def test_identical_matrices(self):
         A = np.array([[1, 0], [0, 1]])
         B = np.array([[1, 0], [0, 1]])
-        self.assertAlmostEqual(get_dkl(A, B), 0)
+        self.assertAlmostEqual(get_kld(A, B), 0)
 
     def test_different_matrices(self):
         A = np.array([[1, 0], [0, 1]])
         B = np.array([[1, 0], [1/2, 1/2]])
-        self.assertAlmostEqual(get_dkl(A, B), 0.69314718055994530941723212145818)
+        self.assertAlmostEqual(get_kld(A, B, row_wise_average=False), 0.69314718055994530941723212145818)
 
     def test_debug_mode_enabled(self):
         A = np.array([[1, 0], [0, 1]])
         B = np.array([[1, 0], [1/2, 1/2]])
-        self.assertAlmostEqual(get_dkl(A, B, DEBUG=True), 0.69314718055994530941723212145818)
+        self.assertAlmostEqual(get_kld(A, B, row_wise_average=False, DEBUG=True), 0.69314718055994530941723212145818)
 
     def test_different_shapes(self):
         A = np.array([[1, 0], [0, 1]])
         B = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
         with self.assertRaises(ValueError):
-            get_dkl(A, B, DEBUG=True)
+            get_kld(A, B, DEBUG=True)
 
     def test_out_of_range_values(self):
         A = np.array([[1, 0], [0, 1]])
         B = np.array([[1, 0], [1/2, 3/2]])
         with self.assertRaises(ValueError):
-            get_dkl(A, B, DEBUG=True)
+            get_kld(A, B, DEBUG=True)
 
     def test_rows_not_summing_to_1(self):
         A = np.array([[1, 0], [0, 1]])
         B = np.array([[1, 0], [1/2, 1/3]])
         with self.assertRaises(ValueError):
-            get_dkl(A, B, DEBUG=True)
+            get_kld(A, B, DEBUG=True)
 
 
 class TestGetConfusionMatrix(unittest.TestCase):
