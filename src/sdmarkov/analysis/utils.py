@@ -15,8 +15,8 @@ def generate_dataframe(
 
     Parameters
     ----------
-    model_contexts : dict[str, ModelContext]
-        Dictionary mapping model names to pre-built ModelContext objects.
+    model_contexts : iterable of (model_name, ModelContext)
+        iterable yielding pre-built ModelContext objects.
     data_function : callable
         Function that takes a single ModelContext and returns a pandas DataFrame.
     schema : dict[str, str] or None, optional
@@ -33,10 +33,13 @@ def generate_dataframe(
 
     frames = []
 
-    for model_name, ctx in model_contexts.items():
+    for model_name, ctx in model_contexts:
         df = data_function(context=ctx, DEBUG=DEBUG)
 
         frames.append(df)
+
+        # Crucial: release memory early
+        del ctx
 
     result = pd.concat(frames, ignore_index=True)
     assert not result.empty, "No rows generated"

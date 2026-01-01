@@ -252,7 +252,7 @@ def get_model_context(
     return ctx
 
 
-def get_model_contexts(
+def iter_model_contexts(
     *,
     model_directory,
     update,
@@ -262,9 +262,11 @@ def get_model_contexts(
     force_rebuild=False,
     DEBUG=False,
 ):
-    model_directory = Path(model_directory)
+    """
+    Yield (model_name, ModelContext) one at a time.
+    """
 
-    contexts = {}
+    model_directory = Path(model_directory)
     model_files = sorted(p for p in model_directory.iterdir() if p.is_file())
 
     print(f"Preparing contexts for {len(model_files)} models")
@@ -286,6 +288,4 @@ def get_model_contexts(
             DEBUG=DEBUG,
         )
 
-        contexts[path.name] = ctx
-
-    return contexts
+        yield path.name, ctx
