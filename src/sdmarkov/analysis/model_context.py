@@ -34,8 +34,13 @@ class ModelContext:
     update: str
 
     primes: dict
+    n_nodes: int
+    n_sources: int
+
     percolated_primes: dict
     percolated_bnet: str
+    n_perc: int
+    n_sources_perc: int
     n_states: int
 
     stg: object
@@ -66,6 +71,8 @@ class ModelContext:
 def _build_model_context(bnet, model_name, update, nsquare_steps, n_random, DEBUG):
     primes = bnet_text2primes(bnet)
     primes = {k: primes[k] for k in sorted(primes)}
+    n_nodes = len(primes)
+    n_sources = sum(1 for node in primes if primes[node] == [[{node: 0}], [{node: 1}]])
     percolated_primes = percolate(primes, remove_constants=True, copy=True)
 
     if len(percolated_primes) == 0:
@@ -84,8 +91,13 @@ def _build_model_context(bnet, model_name, update, nsquare_steps, n_random, DEBU
             update=update,
 
             primes=primes,
+            n_nodes=n_nodes,
+            n_sources=n_sources,
+
             percolated_primes=percolated_primes,
             percolated_bnet="",
+            n_perc=0,
+            n_sources_perc=0,
             n_states=1,
 
             stg=None,
@@ -118,6 +130,9 @@ def _build_model_context(bnet, model_name, update, nsquare_steps, n_random, DEBU
     stg = primes2stg(percolated_primes, update)
     scc_dag = get_scc_dag(stg)
     attractor_indices = get_attractor_states(scc_dag, as_indices=True, DEBUG=DEBUG)
+
+    n_perc = len(percolated_primes)
+    n_sources_perc = sum(1 for node in percolated_primes if percolated_primes[node] == [[{node:0}], [{node:1}]])
 
     min_trap = compute_trap_spaces(percolated_primes, type_="min")
 
@@ -167,9 +182,14 @@ def _build_model_context(bnet, model_name, update, nsquare_steps, n_random, DEBU
         update=update,
 
         primes=primes,
+        n_nodes=n_nodes,
+        n_sources=n_sources,
+
         percolated_primes=percolated_primes,
         percolated_bnet=percolated_bnet,
-        n_states=2 ** len(percolated_primes),
+        n_perc=n_perc,
+        n_sources_perc=n_sources_perc,
+        n_states=2 ** n_perc,
         
         stg=stg,
         scc_dag=scc_dag,
