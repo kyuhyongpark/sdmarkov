@@ -1,4 +1,4 @@
-bnet,method,run,group_count,group_size_mean,group_size_std,mc_edges_count,N,sources,N_perc,sources_perc,min_trap_count,attractor_count,update_scheme
+model,method,run,group_count,group_size_mean,group_size_std,mc_edges_count,N,sources,N_perc,sources_perc,n_min_trap,n_attractors,update_scheme
 n010_000.bnet,sd_mc,0,16,64.0,32.0,46,10,0,10,0,2,2,asynchronous
 n010_000.bnet,null_mc,0,3,341.3333333333333,437.46339529407743,5,10,0,10,0,2,2,asynchronous
 n010_000.bnet,random_mc,0,16,64.0,13.720422734012244,226,10,0,10,0,2,2,asynchronous
