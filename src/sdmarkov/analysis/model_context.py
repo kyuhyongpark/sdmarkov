@@ -30,7 +30,7 @@ class RandomContext:
 @dataclass
 class ModelContext:
     bnet: str
-    bnet_name: str
+    model_name: str
     update: str
 
     primes: dict
@@ -63,7 +63,7 @@ class ModelContext:
 
     random: RandomContext
 
-def _build_model_context(bnet, bnet_name, update, nsquare_steps, n_random, DEBUG):
+def _build_model_context(bnet, model_name, update, nsquare_steps, n_random, DEBUG):
     primes = bnet_text2primes(bnet)
     primes = {k: primes[k] for k in sorted(primes)}
     percolated_primes = percolate(primes, remove_constants=True, copy=True)
@@ -80,7 +80,7 @@ def _build_model_context(bnet, bnet_name, update, nsquare_steps, n_random, DEBUG
 
         return ModelContext(
             bnet=bnet,
-            bnet_name=bnet_name,
+            model_name=model_name,
             update=update,
 
             primes=primes,
@@ -163,7 +163,7 @@ def _build_model_context(bnet, bnet_name, update, nsquare_steps, n_random, DEBUG
 
     return ModelContext(
         bnet=bnet,
-        bnet_name=bnet_name,
+        model_name=model_name,
         update=update,
 
         primes=primes,
@@ -200,7 +200,7 @@ def _build_model_context(bnet, bnet_name, update, nsquare_steps, n_random, DEBUG
 def get_model_context(
     *,
     bnet,
-    bnet_name,
+    model_name,
     update,
     nsquare_steps,
     n_random,
@@ -211,7 +211,7 @@ def get_model_context(
     cache_dir = Path(cache_dir)
     cache_dir.mkdir(parents=True, exist_ok=True)
 
-    cache_path = cache_dir / f"{bnet_name}_{update}_{nsquare_steps}_{n_random}.pkl"
+    cache_path = cache_dir / f"{model_name}_{update}_{nsquare_steps}_{n_random}.pkl"
 
     if cache_path.exists() and not force_rebuild:
         with cache_path.open("rb") as f:
@@ -219,7 +219,7 @@ def get_model_context(
 
     ctx = _build_model_context(
         bnet=bnet,
-        bnet_name=bnet_name,
+        model_name=model_name,
         update=update,
         nsquare_steps=nsquare_steps,
         n_random=n_random,
@@ -257,7 +257,7 @@ def get_model_contexts(
 
         ctx = get_model_context(
             bnet=bnet,
-            bnet_name=path.name,
+            model_name=path.name,
             update=update,
             nsquare_steps=nsquare_steps,
             n_random=n_random,
