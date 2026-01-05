@@ -60,8 +60,8 @@ class TestGetSdNodesAndEdges(unittest.TestCase):
                             {'A': 0, 'B': 0, 'C': 1, 'D': 1},
                             {'A': 1, 'D': 0},
                             {'A': 1, 'B': 0, 'D': 0},],
-                           [[{'A': 1}],
-                            [{'A': 1, 'B': 0}]])
+                           [{'A': 1},
+                            {'A': 1, 'B': 0}])
 
         self.assertEqual(get_sd_nodes_and_edges(bnet), expected_output)
 
@@ -75,8 +75,9 @@ class TestGetSdNodesAndEdges(unittest.TestCase):
                            [{},
                             {'A': 0, 'B': 0, 'C': 0},
                             {'A': 1, 'B': 1, 'C': 1},],
-                           [[{'B': 1}, {'A': 1}],
-                            [{'A': 0, 'B': 0}],])
+                           [{'B': 1},
+                            {'A': 0, 'B': 0},
+                            {'A': 1},])
 
         self.assertEqual(get_sd_nodes_and_edges(bnet), expected_output)
 
@@ -92,10 +93,10 @@ class TestGetSdNodesAndEdges(unittest.TestCase):
                             {'A': 0, 'B': 1, 'C': 0},
                             {'A': 1, 'B': 0, 'C': 0},
                             {'A': 1, 'B': 1, 'C': 1}],
-                           [[{'A': 0, 'B': 0}],
-                            [{'A': 0, 'B': 1}],
-                            [{'A': 1, 'B': 0}],
-                            [{'A': 1, 'B': 1}]])
+                           [{'A': 0, 'B': 0},
+                            {'A': 0, 'B': 1},
+                            {'A': 1, 'B': 0},
+                            {'A': 1, 'B': 1}])
         self.assertEqual(get_sd_nodes_and_edges(bnet), expected_output)
 
     def test_duplicate_states(self):
@@ -112,11 +113,11 @@ class TestGetSdNodesAndEdges(unittest.TestCase):
                             {'A': 1, 'D': 1},
                             {'A': 1, 'B': 0, 'C': 0, 'D': 1},
                             {'A': 1, 'B': 1, 'C': 1, 'D': 1},],
-                           [[{'B': 0},],
-                            [{'A': 0},],
-                            [{'A': 0, 'B': 0, 'C': 0},],
-                            [{'A': 1, 'B': 0, 'D': 1},],
-                            [{'A': 1, 'B': 1, 'D': 1},],])
+                           [{'B': 0},
+                            {'A': 0},
+                            {'A': 0, 'B': 0, 'C': 0},
+                            {'A': 1, 'B': 0, 'D': 1},
+                            {'A': 1, 'B': 1, 'D': 1},])
 
         self.assertEqual(get_sd_nodes_and_edges(bnet), expected_output)
 
@@ -139,12 +140,12 @@ class TestGetSdNodesAndEdges(unittest.TestCase):
                             {'X1':1, 'X2':1, 'X3':1},
                             {'X1':1, 'X2':1, 'X3':1, 'Y1':0, 'Y2':0, 'Y3':0},
                             {'X1':1, 'X2':1, 'X3':1, 'Y1':1, 'Y2':1, 'Y3':1}],
-                           [[{'Y1':1}],
-                            [{'X1':0, 'X2':0, 'X3':0, 'Y1':1}],
-                            [{'X1':1}],
-                            [{'X1':1, 'Y1':0, 'Y2':0, 'Y3':0}],
-                            [{'X1':1, 'Y1':1, 'Y2':1, 'Y3':1}],
-                            [{'X1':1, 'X2':1, 'X3':1, 'Y1':1}]])
+                           [{'Y1':1},
+                            {'X1':0, 'X2':0, 'X3':0, 'Y1':1},
+                            {'X1':1},
+                            {'X1':1, 'Y1':0, 'Y2':0, 'Y3':0},
+                            {'X1':1, 'Y1':1, 'Y2':1, 'Y3':1},
+                            {'X1':1, 'X2':1, 'X3':1, 'Y1':1}])
 
         self.assertEqual(get_sd_nodes_and_edges(bnet), expected_output)
 
@@ -283,8 +284,8 @@ class TestGetSDGroupStates(unittest.TestCase):
                     {'A': 0, 'B': 0, 'C': 1, 'D': 1},
                     {'A': 1, 'D': 0},
                     {'A': 1, 'B': 0, 'D': 0},]
-        sd_edges = [[{'A': 1}],
-                    [{'A': 1, 'B': 0}]]
+        sd_edges = [{'A': 1},
+                    {'A': 1, 'B': 0}]
         expected_result = (
             True,
             [['0100', '0101', '0110', '0111'],
@@ -342,13 +343,14 @@ class TestGetSDGroupStates(unittest.TestCase):
         """
         nodes, sd_nodes, sd_edges = get_sd_nodes_and_edges(bnet)
         expected_result = (
-            True,
+            False,
             [[],
              ['000'],
              ['111'],
-             ['010', '011', '100', '101', '110'],
-             ['001']],
-            {})
+             ['010', '011', '110'], 
+             ['001'],
+             ['100', '101', '110'],],
+            {'110': [{'B': 1}, {'A': 1}]})
         self.assertEqual(get_sd_group_states(nodes, sd_nodes, sd_edges), expected_result)
 
     def test_duplicate_states(self):
@@ -359,11 +361,11 @@ class TestGetSDGroupStates(unittest.TestCase):
                     {'A': 1, 'D': 1},
                     {'A': 1, 'B': 0, 'C': 0, 'D': 1},
                     {'A': 1, 'B': 1, 'C': 1, 'D': 1},]
-        sd_edges = [[{'B': 0}],
-                    [{'A': 0}],
-                    [{'A': 0, 'B': 0, 'C': 0}],
-                    [{'A': 1, 'B': 0, 'D': 1}],
-                    [{'A': 1, 'B': 1, 'D': 1}]]
+        sd_edges = [{'B': 0},
+                    {'A': 0},
+                    {'A': 0, 'B': 0, 'C': 0},
+                    {'A': 1, 'B': 0, 'D': 1},
+                    {'A': 1, 'B': 1, 'D': 1}]
         expected_result = (
             False,
             [['1100', '1110',],
@@ -377,8 +379,8 @@ class TestGetSDGroupStates(unittest.TestCase):
              ['0001'],
              ['1011'],
              ['1101'],],
-            {'0010': [[{'B': 0}], [{'A': 0}],],
-             '0011': [[{'B': 0}], [{'A': 0}],],})
+            {'0010': [{'B': 0}, {'A': 0},],
+             '0011': [{'B': 0}, {'A': 0},],})
         self.assertEqual(get_sd_group_states(nodes, sd_nodes, sd_edges), expected_result)
 
     def test_duplicate_states_combined(self):
@@ -402,8 +404,8 @@ class TestGetSDGroupStates(unittest.TestCase):
              ['0001'],
              ['1011'],
              ['1101'],],
-            {'0010': [[{'B': 0}], [{'A': 0}],],
-             '0011': [[{'B': 0}], [{'A': 0}],],})
+            {'0010': [{'B': 0}, {'A': 0},],
+             '0011': [{'B': 0}, {'A': 0},],})
         self.assertEqual(get_sd_group_states(nodes, sd_nodes, sd_edges), expected_result)
 
     def test_percolation(self):
@@ -417,12 +419,12 @@ class TestGetSDGroupStates(unittest.TestCase):
                     {'X1':1, 'X2':1, 'X3':1},
                     {'X1':1, 'X2':1, 'X3':1, 'Y1':0, 'Y2':0, 'Y3':0},
                     {'X1':1, 'X2':1, 'X3':1, 'Y1':1, 'Y2':1, 'Y3':1}]
-        sd_edges = [[{'Y1':1}],
-                    [{'X1':0, 'X2':0, 'X3':0, 'Y1':1}],
-                    [{'X1':1}],
-                    [{'X1':1, 'Y1':0, 'Y2':0, 'Y3':0}],
-                    [{'X1':1, 'Y1':1, 'Y2':1, 'Y3':1}],
-                    [{'X1':1, 'X2':1, 'X3':1, 'Y1':1}]]
+        sd_edges = [{'Y1':1},
+                    {'X1':0, 'X2':0, 'X3':0, 'Y1':1},
+                    {'X1':1},
+                    {'X1':1, 'Y1':0, 'Y2':0, 'Y3':0},
+                    {'X1':1, 'Y1':1, 'Y2':1, 'Y3':1},
+                    {'X1':1, 'X2':1, 'X3':1, 'Y1':1}]
         expected_result = (
             False,
             [['001001', '001010', '001011',
@@ -449,15 +451,15 @@ class TestGetSDGroupStates(unittest.TestCase):
              ['100000', '101000', '110000'],
              ['100111', '101111', '110111'],
              ['111100', '111101', '111110']],
-            {'100100': [[{'Y1': 1}], [{'X1': 1}]],
-             '100101': [[{'Y1': 1}], [{'X1': 1}]],
-             '100110': [[{'Y1': 1}], [{'X1': 1}]],
-             '101100': [[{'Y1': 1}], [{'X1': 1}]],
-             '101101': [[{'Y1': 1}], [{'X1': 1}]],
-             '101110': [[{'Y1': 1}], [{'X1': 1}]],
-             '110100': [[{'Y1': 1}], [{'X1': 1}]],
-             '110101': [[{'Y1': 1}], [{'X1': 1}]],
-             '110110': [[{'Y1': 1}], [{'X1': 1}]]})
+            {'100100': [{'Y1': 1}, {'X1': 1}],
+             '100101': [{'Y1': 1}, {'X1': 1}],
+             '100110': [{'Y1': 1}, {'X1': 1}],
+             '101100': [{'Y1': 1}, {'X1': 1}],
+             '101101': [{'Y1': 1}, {'X1': 1}],
+             '101110': [{'Y1': 1}, {'X1': 1}],
+             '110100': [{'Y1': 1}, {'X1': 1}],
+             '110101': [{'Y1': 1}, {'X1': 1}],
+             '110110': [{'Y1': 1}, {'X1': 1}]})
         self.assertEqual(get_sd_group_states(nodes, sd_nodes, sd_edges), expected_result)
 
     def test_percolation_combined(self):
@@ -496,28 +498,28 @@ class TestGetSDGroupStates(unittest.TestCase):
              ['100000', '101000', '110000'],
              ['100111', '101111', '110111'],
              ['111100', '111101', '111110']],
-            {'100100': [[{'Y1': 1}], [{'X1': 1}]],
-             '100101': [[{'Y1': 1}], [{'X1': 1}]],
-             '100110': [[{'Y1': 1}], [{'X1': 1}]],
-             '101100': [[{'Y1': 1}], [{'X1': 1}]],
-             '101101': [[{'Y1': 1}], [{'X1': 1}]],
-             '101110': [[{'Y1': 1}], [{'X1': 1}]],
-             '110100': [[{'Y1': 1}], [{'X1': 1}]],
-             '110101': [[{'Y1': 1}], [{'X1': 1}]],
-             '110110': [[{'Y1': 1}], [{'X1': 1}]]})
+            {'100100': [{'Y1': 1}, {'X1': 1}],
+             '100101': [{'Y1': 1}, {'X1': 1}],
+             '100110': [{'Y1': 1}, {'X1': 1}],
+             '101100': [{'Y1': 1}, {'X1': 1}],
+             '101101': [{'Y1': 1}, {'X1': 1}],
+             '101110': [{'Y1': 1}, {'X1': 1}],
+             '110100': [{'Y1': 1}, {'X1': 1}],
+             '110101': [{'Y1': 1}, {'X1': 1}],
+             '110110': [{'Y1': 1}, {'X1': 1}]})
         self.assertEqual(get_sd_group_states(nodes, sd_nodes, sd_edges), expected_result)
 
     def test_empty_list_of_nodes(self):
         nodes = []
         sd_nodes = [{}, {'B': 0}, {'A': 0, 'B': 0}]
-        sd_edges = [[], [{'B': 0}], [{'A': 0, 'B': 0}]]
+        sd_edges = [{'B': 0}, {'A': 0, 'B': 0}]
         with self.assertRaises(ValueError):
             get_sd_group_states(nodes, sd_nodes, sd_edges, DEBUG=True)
 
     def test_empty_list_of_sd_nodes(self):
         nodes = ['A', 'B', 'C']
         sd_nodes = []
-        sd_edges = [[], [{'B': 0}], [{'A': 0, 'B': 0}]]
+        sd_edges = [{'B': 0}, {'A': 0, 'B': 0}]
         with self.assertRaises(ValueError):
             get_sd_group_states(nodes, sd_nodes, sd_edges, DEBUG=True)
     
@@ -531,14 +533,14 @@ class TestGetSDGroupStates(unittest.TestCase):
     def test_single_node(self):
         nodes = ['A']
         sd_nodes = [{}, {'A': 0}]
-        sd_edges = [[]]
-        expected_result = (True, [['1'], ['0'], []], {})
+        sd_edges = []
+        expected_result = (True, [['1'], ['0']], {})
         self.assertEqual(get_sd_group_states(nodes, sd_nodes, sd_edges), expected_result)
 
     def test_duplicate_SD_nodes(self):
         nodes = ['A', 'B', 'C']
         sd_nodes = [{}, {}, {'A': 0, 'B': 0}]
-        sd_edges = [[], [], [{'A': 0, 'B': 0}]]
+        sd_edges = [{'A': 0, 'B': 0}]
         with self.assertRaises(ValueError):
             get_sd_group_states(nodes, sd_nodes, sd_edges, DEBUG=True)
 

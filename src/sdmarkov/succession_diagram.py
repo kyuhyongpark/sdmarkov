@@ -4,35 +4,41 @@ import biobalm
 
 
 def get_sd_nodes_and_edges(
-    bnet: str, minimal: bool = False, DEBUG: bool = False
-) -> tuple[list[str], list[dict[str, int]], list[list[dict[str, int]]]]:
+    bnet: str,
+    minimal: bool = False,
+    DEBUG: bool = False,
+) -> tuple[
+    list[str],
+    list[dict[str, int]],
+    list[dict[str, int]],
+]:
     """
-    Given a Boolean network as a string in bnet format, returns a tuple containing
-    a list of node names, a list of dictionaries, where each dictionary corresponds
-    to the state of a node or an edge in the succession diagram, and a list of lists
-    of dictionaries, where each sublist corresponds to the outgoing edges of a node
-    in the succession diagram. The keys in the dictionary are the node names, and the
-    values are the node states (0 or 1). The dictionaries are sorted by key (node name).
+    Extract symbolic trap spaces that corresponds to a succession diagram from a Boolean network.
 
     Parameters
     ----------
     bnet : str
-        The Boolean network as a string, with nodes and their update rules
-        separated by commas.
+        Boolean network in .bnet format.
     minimal : bool, optional
-        If True, only nodes that are minimal trapspaces are included in the output.
+        If True, return only minimal trap spaces.
     DEBUG : bool, optional
-        If True, performs additional checks.
-        
+        If True, enable additional internal checks and diagnostics.
+
     Returns
     -------
-    tuple[list[str], list[dict[str, int]], list[list[dict[str, int]]]]
-        A tuple containing a list of node names, a list of dictionaries, where
-        each dictionary corresponds to the state of a node or an edge in the
-        succession diagram, and a list of lists of dictionaries, where each sublist
-        corresponds to the outgoing edges of a node in the succession diagram.
+    nodes : list[str]
+        Canonical node ordering.
+    node_trap_spaces : list[dict[str, int]]
+        Trap spaces of succession diagram nodes.
+    edge_trap_spaces : list[dict[str, int]]
+        Trap spaces of succession diagram edges.
 
-   """
+    Notes
+    -----
+    - Each trap space is a partial assignment.
+    - `edge_trap_spaces` is flat; provenance is intentionally discarded.
+    - Trap spaces may overlap.
+    """
     sd = biobalm.SuccessionDiagram.from_rules(bnet)
     sd.expand_bfs()
 
@@ -60,26 +66,17 @@ def get_sd_nodes_and_edges(
         # get the outgoing edges of the sd node
         for child in sd.node_successors(node, compute=True):
             edge_motifs = sd.edge_all_stable_motifs(node, child, reduced=False)
-            sd_edge = []
             for motif in edge_motifs:
                 sd_motif = {k: v for k, v in sorted(motif.items())}
 
                 # avoid adding duplicates
                 if sd_motif not in all_groups:
-                    sd_edge.append(sd_motif)
+                    sd_edges.append(sd_motif)
                     all_groups.append(sd_motif)
 
-            # only add non-empty edge
-            if sd_edge:
-                sd_edges.append(sort_sd_nodes(nodes, sd_edge, DEBUG=DEBUG))
-
-    # sort the sd nodes
+    # sort the sd nodes and edges
     sd_nodes = sort_sd_nodes(nodes, sd_nodes, DEBUG=DEBUG)
-
-    # sort the sd edges
-    first_edges = [sd_edge[0] for sd_edge in sd_edges]
-    sorted_edges = sort_sd_nodes(nodes, first_edges, DEBUG=DEBUG)
-    sd_edges = sorted(sd_edges, key=lambda x: sorted_edges.index(x[0]))
+    sd_edges = sort_sd_nodes(nodes, sd_edges, DEBUG=DEBUG)
 
     return nodes, sd_nodes, sd_edges
 
@@ -319,7 +316,7 @@ def get_binary_states(
 def get_sd_group_states(
     nodes: list[str],
     sd_nodes: list[dict[str, int]],
-    sd_edges: list[list[dict[str, int]]],
+    sd_edges: list[dict[str, int]],
     extra_groups: list[dict[str, int]] = [],
     DEBUG: bool = False
 ) -> tuple[bool, list[list[str]], dict[str, list[list[str]]]]:
@@ -337,9 +334,8 @@ def get_sd_group_states(
     sd_nodes: list[dict[str, int]]
         A list of dictionaries where each dictionary represents the state of a node 
         in the succession diagram. The keys are node names, and the values are the node states (0 or 1).
-    sd_edges: list[list[dict[str, int]]]
-        A list of lists where each sublist represents outgoing edges of a node in the 
-        succession diagram. Each edge is a dictionary similar to sd_nodes.
+    sd_edges: list[dict[str, int]]
+        A list of dictionaries where each dictionary represents the state of an edge in the succession diagram.
     extra_groups: list[dict[str, int]], optional
         A list of dictionaries where each dictionary represents the state.
         The keys are node names, and the values are the node states (0 or 1).
@@ -391,9 +387,8 @@ def get_sd_group_states(
     
     all_subspaces = sd_nodes.copy()
     for sd_edge in sd_edges:
-        for motif in sd_edge:
-            if motif not in all_subspaces:
-                all_subspaces.append(motif)
+        if sd_edge not in all_subspaces:
+            all_subspaces.append(sd_edge)
     for extra_group in extra_groups:
         if extra_group not in all_subspaces:
             all_subspaces.append(extra_group)
@@ -410,18 +405,17 @@ def get_sd_group_states(
         sd_group_states.append(states)
     
     for sd_edge in sd_edges:
-        edge_states = []
-        for motif in sd_edge:
-            # Do not add motif if it is already in SD_nodes
-            if motif in sd_nodes:
-                continue
+        # Do not add motif if it is already in SD_nodes
+        if sd_edge in sd_nodes:
+            continue
 
-            other_subspaces = all_subspaces.copy()
-            other_subspaces.remove(motif)
-            states = get_binary_states(nodes, motif, other_subspaces, DEBUG=DEBUG)
-            for state in states:
-                if state not in edge_states:
-                    edge_states.append(state)
+        other_subspaces = all_subspaces.copy()
+        other_subspaces.remove(sd_edge)
+        states = get_binary_states(nodes, sd_edge, other_subspaces, DEBUG=DEBUG)
+        edge_states = []
+        for state in states:
+            if state not in edge_states:
+                edge_states.append(state)
 
         sd_group_states.append(sorted(edge_states))
     

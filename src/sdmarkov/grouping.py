@@ -45,21 +45,17 @@ def sd_grouping(bnet: str, DEBUG: bool = False) -> list[list[int]]:
         
         for state in duplicates:
             extra_group = {}
-            for node_or_edge in duplicates[state]:
-                if isinstance(node_or_edge, dict): # node or extra group
-                    extra_group.update(node_or_edge)
-                else: # edge
-                    for motif in node_or_edge:
-                        # Check whether the state agrees with the motif
-                        agree = True
-                        for i, node in enumerate(nodes):
-                            if node not in motif:
-                                continue
-                            if int(state[i]) != motif[node]:
-                                agree = False
-                                break
-                        if agree:
-                            extra_group.update(motif)
+            for trap_space in duplicates[state]:
+                # Check whether the state agrees with the trap space
+                agree = True
+                for i, node in enumerate(nodes):
+                    if node not in trap_space:
+                        continue
+                    if int(state[i]) != trap_space[node]:
+                        agree = False
+                        break
+                if agree:
+                    extra_group.update(trap_space)
             extra_group = dict(sorted(extra_group.items(), key=lambda x: x[0]))
 
             if extra_group not in extra_groups:
