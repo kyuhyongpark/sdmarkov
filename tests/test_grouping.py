@@ -12,7 +12,7 @@ class TestSdGrouping(unittest.TestCase):
         C, B & !C | !C & !D | !B & C & D
         D, !A & !B & !C & !D | !A & C & D
         """
-        expected_output = [[4, 5, 6, 7], [0, 1, 2], [3], [12, 14], [8, 10], [13, 15], [9, 11]]
+        expected_output = [[4, 5, 6, 7], [0, 1, 2], [3], [13, 15], [12, 14], [9, 11], [8, 10]]
         output = sd_grouping(bnet)
         self.assertEqual(output, expected_output)
 
@@ -23,7 +23,7 @@ class TestSdGrouping(unittest.TestCase):
         A, A | B & C
         C, B & !C | !C & !D | !B & C & D
         """
-        expected_output = [[4, 5, 6, 7], [0, 1, 2], [3], [12, 14], [8, 10], [13, 15], [9, 11]]
+        expected_output = [[4, 5, 6, 7], [0, 1, 2], [3], [13, 15], [12, 14], [9, 11], [8, 10]]
 
         output = sd_grouping(bnet)
         self.assertEqual(output, expected_output)
@@ -35,17 +35,17 @@ class TestSdGrouping(unittest.TestCase):
         C, B
         D, A
         """
-        expected_output = [[12, 14,],
-                           [8],
-                           [0],
-                           [9],
-                           [15],
+        expected_output = [[12, 14],
                            [10],
-                           [4, 5, 6, 7,],
+                           [8],
+                           [4, 5, 6, 7],
+                           [2, 3],
                            [1,],
-                           [11,],
-                           [13,],
-                           [2, 3,],]
+                           [0],
+                           [11],
+                           [9],
+                           [13],
+                           [15],]
         self.assertEqual(sd_grouping(bnet, DEBUG=True), expected_output)
 
     def test_triple(self):
@@ -66,7 +66,7 @@ class TestSdGrouping(unittest.TestCase):
         C, B & !C | !C & !D | !B & C & D
         D, !A & !B & !C & !D | !A & C & D
         """
-        expected_output = [[4, 5, 6, 7], [0, 1, 2], [3], [12, 14], [8, 10], [13, 15], [9, 11]]
+        expected_output = [[4, 5, 6, 7], [0, 1, 2], [3], [13, 15], [12, 14], [9, 11], [8, 10]]
         output = sd_grouping(bnet, DEBUG=True)
         self.assertEqual(output, expected_output)
 

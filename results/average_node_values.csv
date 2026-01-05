@@ -131,7 +131,7 @@ n010_006.bnet,random_mc,26,0.06236053684428498,1024,2,asynchronous
 n010_006.bnet,random_mc,27,0.06608849371591108,1024,2,asynchronous
 n010_006.bnet,random_mc,28,0.06704760737298793,1024,2,asynchronous
 n010_006.bnet,random_mc,29,0.06323698794871882,1024,2,asynchronous
-n010_007.bnet,sd_mc,,0.008048006239471921,512,2,asynchronous
+n010_007.bnet,sd_mc,,0.008048006239471857,512,2,asynchronous
 n010_007.bnet,null_mc,,0.005875262714779811,512,2,asynchronous
 n010_007.bnet,ref,,0.4423630873986149,512,2,asynchronous
 n010_007.bnet,random_mc,0,0.003553662495104093,512,2,asynchronous
@@ -263,7 +263,7 @@ n010_011.bnet,random_mc,26,0.28397780831615044,512,3,asynchronous
 n010_011.bnet,random_mc,27,0.2857248732385137,512,3,asynchronous
 n010_011.bnet,random_mc,28,0.2881139707540406,512,3,asynchronous
 n010_011.bnet,random_mc,29,0.2899555667903104,512,3,asynchronous
-n010_013.bnet,sd_mc,,0.0018042195912175822,16,3,asynchronous
+n010_013.bnet,sd_mc,,0.0018042195912175742,16,3,asynchronous
 n010_013.bnet,null_mc,,0.1260938468091326,16,3,asynchronous
 n010_013.bnet,ref,,0.27848759136030937,16,3,asynchronous
 n010_013.bnet,random_mc,0,0.06085309927485726,16,3,asynchronous
@@ -296,7 +296,7 @@ n010_013.bnet,random_mc,26,0.10672610333170425,16,3,asynchronous
 n010_013.bnet,random_mc,27,0.1399264585300747,16,3,asynchronous
 n010_013.bnet,random_mc,28,0.11213789865537085,16,3,asynchronous
 n010_013.bnet,random_mc,29,0.15421148974564816,16,3,asynchronous
-n010_015.bnet,sd_mc,,0.07735651798481764,1024,6,asynchronous
+n010_015.bnet,sd_mc,,0.07735651798481762,1024,6,asynchronous
 n010_015.bnet,null_mc,,0.15741021700270671,1024,6,asynchronous
 n010_015.bnet,ref,,0.39989606662189053,1024,6,asynchronous
 n010_015.bnet,random_mc,0,0.15745772267896846,1024,6,asynchronous
@@ -428,7 +428,7 @@ n010_023.bnet,random_mc,26,0.2798667439278229,512,2,asynchronous
 n010_023.bnet,random_mc,27,0.28023264540358017,512,2,asynchronous
 n010_023.bnet,random_mc,28,0.284663187948932,512,2,asynchronous
 n010_023.bnet,random_mc,29,0.2864211424297238,512,2,asynchronous
-n010_024.bnet,sd_mc,,0.03939527024768138,512,4,asynchronous
+n010_024.bnet,sd_mc,,0.039395270247681406,512,4,asynchronous
 n010_024.bnet,null_mc,,0.044275695923568184,512,4,asynchronous
 n010_024.bnet,ref,,0.3512929449891054,512,4,asynchronous
 n010_024.bnet,random_mc,0,0.04627902588379213,512,4,asynchronous
@@ -1121,7 +1121,7 @@ n010_070.bnet,random_mc,26,0.0,2,2,asynchronous
 n010_070.bnet,random_mc,27,0.0,2,2,asynchronous
 n010_070.bnet,random_mc,28,0.0,2,2,asynchronous
 n010_070.bnet,random_mc,29,0.0,2,2,asynchronous
-n010_071.bnet,sd_mc,,0.0025524124404740943,32,2,asynchronous
+n010_071.bnet,sd_mc,,0.002552412440474119,32,2,asynchronous
 n010_071.bnet,null_mc,,0.10925098643451535,32,2,asynchronous
 n010_071.bnet,ref,,0.46036483145100765,32,2,asynchronous
 n010_071.bnet,random_mc,0,0.14047848993911943,32,2,asynchronous
@@ -1253,7 +1253,7 @@ n010_077.bnet,random_mc,26,0.0,256,2,asynchronous
 n010_077.bnet,random_mc,27,0.0020867617901696106,256,2,asynchronous
 n010_077.bnet,random_mc,28,0.00127920423420966,256,2,asynchronous
 n010_077.bnet,random_mc,29,0.007776802276925382,256,2,asynchronous
-n010_080.bnet,sd_mc,,0.021903574579628594,512,3,asynchronous
+n010_080.bnet,sd_mc,,0.021903574579628608,512,3,asynchronous
 n010_080.bnet,null_mc,,0.0580444891554745,512,3,asynchronous
 n010_080.bnet,ref,,0.3427210790691338,512,3,asynchronous
 n010_080.bnet,random_mc,0,0.05823409877528707,512,3,asynchronous
@@ -1319,7 +1319,7 @@ n010_083.bnet,random_mc,26,0.1292205207727028,64,3,asynchronous
 n010_083.bnet,random_mc,27,0.1236096604947486,64,3,asynchronous
 n010_083.bnet,random_mc,28,0.14156457480810022,64,3,asynchronous
 n010_083.bnet,random_mc,29,0.13186680120770314,64,3,asynchronous
-n010_085.bnet,sd_mc,,0.05848051990368011,128,4,asynchronous
+n010_085.bnet,sd_mc,,0.058480519903680084,128,4,asynchronous
 n010_085.bnet,null_mc,,0.1695179640854541,128,4,asynchronous
 n010_085.bnet,ref,,0.2512232887018518,128,4,asynchronous
 n010_085.bnet,random_mc,0,0.1501852532867543,128,4,asynchronous
@@ -1385,7 +1385,7 @@ n010_091.bnet,random_mc,26,0.033917749656187796,1024,2,asynchronous
 n010_091.bnet,random_mc,27,0.046837903801745,1024,2,asynchronous
 n010_091.bnet,random_mc,28,0.03819578540494853,1024,2,asynchronous
 n010_091.bnet,random_mc,29,0.03431608847206478,1024,2,asynchronous
-n010_094.bnet,sd_mc,,0.16353013157248258,1024,2,asynchronous
+n010_094.bnet,sd_mc,,0.1635301315724829,1024,2,asynchronous
 n010_094.bnet,null_mc,,0.10598034410429688,1024,2,asynchronous
 n010_094.bnet,ref,,0.42999622518928404,1024,2,asynchronous
 n010_094.bnet,random_mc,0,0.10358252434547163,1024,2,asynchronous

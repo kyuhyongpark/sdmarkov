@@ -4,7 +4,7 @@ from collections import Counter
 
 import matplotlib.pyplot as plt
 
-from sdmarkov.succession_diagram import get_sd_nodes_and_edges, get_sd_group_states
+from sdmarkov.succession_diagram import build_sd_trap_spaces, assign_states_to_trap_spaces
 from sdmarkov.helper import states_to_indices
 
 
@@ -30,42 +30,8 @@ def sd_grouping(bnet: str, DEBUG: bool = False) -> list[list[int]]:
     >>> sd_grouping("A, A | B & C\nB, B & !C\nC, B & !C | !C & !D | !B & C & D\nD, !A & !B & !C & !D | !A & C & D")
     [[4, 5, 6, 7], [], [0, 1, 2], [3], [12, 14], [8, 10], [13, 15], [9, 11]]
     """
-    nodes, sd_nodes, sd_edges = get_sd_nodes_and_edges(bnet)
-
-    success, sd_group_states, duplicates = get_sd_group_states(nodes, sd_nodes, sd_edges, DEBUG=DEBUG)
-
-    if DEBUG:
-        if duplicates:
-            print(f"{duplicates=}")
-    
-    extra_groups = []
-    n_trys = 0
-    while not success and n_trys < 100:
-        n_trys += 1
-        
-        for state in duplicates:
-            extra_group = {}
-            for trap_space in duplicates[state]:
-                # Check whether the state agrees with the trap space
-                agree = True
-                for i, node in enumerate(nodes):
-                    if node not in trap_space:
-                        continue
-                    if int(state[i]) != trap_space[node]:
-                        agree = False
-                        break
-                if agree:
-                    extra_group.update(trap_space)
-            extra_group = dict(sorted(extra_group.items(), key=lambda x: x[0]))
-
-            if extra_group not in extra_groups:
-                extra_groups.append(extra_group)
-
-        success, sd_group_states, duplicates = get_sd_group_states(nodes, sd_nodes, sd_edges, extra_groups, DEBUG=DEBUG)
-
-    if DEBUG:
-        if extra_groups:
-            print(f"{extra_groups=}")
+    nodes, trap_spaces = build_sd_trap_spaces(bnet, DEBUG=DEBUG)
+    sd_group_states = assign_states_to_trap_spaces(nodes, trap_spaces, DEBUG=DEBUG)
 
     indices = states_to_indices(sd_group_states, DEBUG=DEBUG)
 
@@ -97,14 +63,13 @@ def null_grouping(bnet: str, DEBUG: bool = False) -> list[list[int]]:
     >>> null_grouping("A, A | B & C\nB, B & !C\nC, B & !C | !C & !D | !B & C & D\nD, !A & !B & !C & !D | !A & C & D")
     [[0, 1, 2, 4, 5, 6, 7, 9, 11, 12, 13, 14, 15], [3], [8, 10]]
     """
-    nodes, min_trap_nodes, _ = get_sd_nodes_and_edges(bnet, minimal=True)
+    nodes, min_trap_nodes = build_sd_trap_spaces(bnet, minimal=True, DEBUG=DEBUG)
 
     # Make sure to add the group for all transient states
     if {} not in min_trap_nodes:
         min_trap_nodes.insert(0, {})
 
-    success, min_trap_states, duplicates = get_sd_group_states(nodes, min_trap_nodes, sd_edges=_, DEBUG=DEBUG)
-
+    min_trap_states = assign_states_to_trap_spaces(nodes, min_trap_nodes, DEBUG=DEBUG)
     indices = states_to_indices(min_trap_states, DEBUG=DEBUG)
 
     # remove empty groups
