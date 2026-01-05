@@ -1,38 +1,45 @@
 from itertools import product
 
+import numpy as np
 import biobalm
 
 
 def get_sd_nodes_and_edges(
-    bnet: str, minimal: bool = False, DEBUG: bool = False
-) -> tuple[list[str], list[dict[str, int]], list[list[dict[str, int]]]]:
+    bnet: str,
+    minimal: bool = False,
+    DEBUG: bool = False,
+) -> tuple[
+    list[str],
+    list[dict[str, int]],
+    list[dict[str, int]],
+]:
     """
-    Given a Boolean network as a string in bnet format, returns a tuple containing
-    a list of node names, a list of dictionaries, where each dictionary corresponds
-    to the state of a node or an edge in the succession diagram, and a list of lists
-    of dictionaries, where each sublist corresponds to the outgoing edges of a node
-    in the succession diagram. The keys in the dictionary are the node names, and the
-    values are the node states (0 or 1). The dictionaries are sorted by key (node name).
+    Extract symbolic trap spaces that corresponds to a succession diagram from a Boolean network.
 
     Parameters
     ----------
     bnet : str
-        The Boolean network as a string, with nodes and their update rules
-        separated by commas.
+        Boolean network in .bnet format.
     minimal : bool, optional
-        If True, only nodes that are minimal trapspaces are included in the output.
+        If True, return only minimal trap spaces.
     DEBUG : bool, optional
-        If True, performs additional checks.
-        
+        If True, enable additional internal checks and diagnostics.
+
     Returns
     -------
-    tuple[list[str], list[dict[str, int]], list[list[dict[str, int]]]]
-        A tuple containing a list of node names, a list of dictionaries, where
-        each dictionary corresponds to the state of a node or an edge in the
-        succession diagram, and a list of lists of dictionaries, where each sublist
-        corresponds to the outgoing edges of a node in the succession diagram.
+    nodes : list[str]
+        Canonical node ordering.
+    node_trap_spaces : list[dict[str, int]]
+        Trap spaces of succession diagram nodes.
+    edge_trap_spaces : list[dict[str, int]]
+        Trap spaces of succession diagram edges.
 
-   """
+    Notes
+    -----
+    - Each trap space is a partial assignment.
+    - `edge_trap_spaces` is flat; provenance is intentionally discarded.
+    - Trap spaces may overlap.
+    """
     sd = biobalm.SuccessionDiagram.from_rules(bnet)
     sd.expand_bfs()
 
@@ -60,26 +67,17 @@ def get_sd_nodes_and_edges(
         # get the outgoing edges of the sd node
         for child in sd.node_successors(node, compute=True):
             edge_motifs = sd.edge_all_stable_motifs(node, child, reduced=False)
-            sd_edge = []
             for motif in edge_motifs:
                 sd_motif = {k: v for k, v in sorted(motif.items())}
 
                 # avoid adding duplicates
                 if sd_motif not in all_groups:
-                    sd_edge.append(sd_motif)
+                    sd_edges.append(sd_motif)
                     all_groups.append(sd_motif)
 
-            # only add non-empty edge
-            if sd_edge:
-                sd_edges.append(sort_sd_nodes(nodes, sd_edge, DEBUG=DEBUG))
-
-    # sort the sd nodes
+    # sort the sd nodes and edges
     sd_nodes = sort_sd_nodes(nodes, sd_nodes, DEBUG=DEBUG)
-
-    # sort the sd edges
-    first_edges = [sd_edge[0] for sd_edge in sd_edges]
-    sorted_edges = sort_sd_nodes(nodes, first_edges, DEBUG=DEBUG)
-    sd_edges = sorted(sd_edges, key=lambda x: sorted_edges.index(x[0]))
+    sd_edges = sort_sd_nodes(nodes, sd_edges, DEBUG=DEBUG)
 
     return nodes, sd_nodes, sd_edges
 
@@ -151,6 +149,155 @@ def sort_sd_nodes(
     sorted_sd_nodes = sorted(sd_nodes, key=lambda d: custom_sort_key(d, nodes))
 
     return sorted_sd_nodes
+
+
+def trap_spaces_overlap(
+    a: dict[str, int],
+    b: dict[str, int],
+) -> bool:
+    """
+    Return True if two trap spaces overlap (i.e. are jointly satisfiable).
+
+    Two trap spaces overlap if there is no variable that is assigned
+    different values in a and b.
+    """
+    # Iterate over the smaller dict for efficiency
+    if len(a) > len(b):
+        a, b = b, a
+
+    for var, val in a.items():
+        if var in b and b[var] != val:
+            return False
+
+    return True
+
+
+def intersect_trap_spaces(
+    a: dict[str, int],
+    b: dict[str, int],
+) -> dict[str, int] | None:
+    """
+    Return the intersection trap space if consistent, else None.
+
+    The intersection is the union of assignments if no conflicts exist.
+    """
+    intersection = dict(a)
+
+    for var, val in b.items():
+        if var in intersection:
+            if intersection[var] != val:
+                return None
+        else:
+            intersection[var] = val
+
+    return intersection
+
+
+def close_trap_spaces_under_intersection(
+    trap_spaces: list[dict[str, int]],
+    DEBUG: bool = False,
+) -> list[dict[str, int]]:
+    """
+    Close a collection of trap spaces under intersection.
+    """
+    # Work with a list + set of frozensets for fast membership tests
+    closed = list(trap_spaces)
+    seen = {frozenset(ts.items()) for ts in closed}
+
+    changed = True
+    while changed:
+        changed = False
+        n = len(closed)
+
+        for i in range(n):
+            for j in range(i + 1, n):
+                a = closed[i]
+                b = closed[j]
+
+                inter = intersect_trap_spaces(a, b)
+                if inter is None:
+                    continue
+
+                key = frozenset(inter.items())
+                if key not in seen:
+                    if DEBUG:
+                        print(f"Adding intersection: {inter}")
+                    closed.append(inter)
+                    seen.add(key)
+                    changed = True
+
+    return closed
+
+
+def validate_no_missing_intersections(
+    trap_spaces: list[dict[str, int]],
+    DEBUG: bool = False,
+) -> bool:
+    """
+    Validate that all overlapping trap spaces have their intersection included.
+    """
+    # Precompute keys for fast lookup
+    trap_space_keys = {frozenset(ts.items()) for ts in trap_spaces}
+
+    valid = True
+
+    n = len(trap_spaces)
+    for i in range(n):
+        for j in range(i + 1, n):
+            a = trap_spaces[i]
+            b = trap_spaces[j]
+
+            inter = intersect_trap_spaces(a, b)
+            if inter is None:
+                continue
+
+            key = frozenset(inter.items())
+            if key not in trap_space_keys:
+                valid = False
+                if DEBUG:
+                    print(
+                        "Missing intersection:",
+                        f"a={a}, b={b}, intersection={inter}",
+                    )
+
+    return valid
+
+
+def build_sd_trap_spaces(
+    bnet: str,
+    minimal: bool = False,
+    DEBUG: bool = False,
+) -> tuple[list[str], list[dict[str, int]]]:
+    """
+    Build symbolic trap spaces derived from stable-decision (SD) motifs.
+
+    The procedure prioritizes edge-derived trap spaces, since most overlaps
+    originate from edges. A full closure is only performed if needed.
+    """
+    # Extract SD-derived trap spaces
+    nodes, node_ts, edge_ts = get_sd_nodes_and_edges(bnet, minimal=minimal, DEBUG=DEBUG)
+
+    # Stage 1: close edge-derived trap spaces
+    closed_edges = close_trap_spaces_under_intersection(edge_ts, DEBUG=DEBUG)
+
+    # Stage 2: merge node-level trap spaces
+    all_ts = closed_edges + [
+        ts for ts in node_ts if ts not in closed_edges
+    ]
+
+    # Stage 3: validate once
+    if not validate_no_missing_intersections(all_ts, DEBUG=DEBUG):
+        if DEBUG:
+            print(
+                "WARNING: Missing intersections after merging node trap spaces. "
+                "Performing full closure."
+            )
+        all_ts = close_trap_spaces_under_intersection(all_ts, DEBUG=DEBUG)
+
+    all_ts = sort_sd_nodes(nodes, all_ts, DEBUG=DEBUG)
+
+    return nodes, all_ts
+
 
 
 def generate_states(
@@ -316,161 +463,61 @@ def get_binary_states(
     return generate_states(nodes, node_values, valid_exclude_values, DEBUG=DEBUG)
 
 
-def get_sd_group_states(
+def assign_states_to_trap_spaces(
     nodes: list[str],
-    sd_nodes: list[dict[str, int]],
-    sd_edges: list[list[dict[str, int]]],
-    extra_groups: list[dict[str, int]] = [],
-    DEBUG: bool = False
-) -> tuple[bool, list[list[str]], dict[str, list[list[str]]]]:
+    trap_spaces: list[dict[str, int]],
+    DEBUG: bool = False,
+) -> list[list[str]]:
     """
-    Retrieve binary states corresponding to each succession diagram (SD) node.
-
-    This function iterates over a list of SD nodes and generates binary states 
-    for each SD node based on the list of provided node names. It also ensures 
-    that each SD node and edge has a unique set of binary states.
+    Assign concrete binary states to each trap space.
 
     Parameters
     ----------
-    nodes: list[str]
-        A list of node names.
-    sd_nodes: list[dict[str, int]]
-        A list of dictionaries where each dictionary represents the state of a node 
-        in the succession diagram. The keys are node names, and the values are the node states (0 or 1).
-    sd_edges: list[list[dict[str, int]]]
-        A list of lists where each sublist represents outgoing edges of a node in the 
-        succession diagram. Each edge is a dictionary similar to sd_nodes.
-    extra_groups: list[dict[str, int]], optional
-        A list of dictionaries where each dictionary represents the state.
-        The keys are node names, and the values are the node states (0 or 1).
-        May be needed to ensure that all states are unique.
-    DEBUG: bool, optional
-        If set to True, performs additional checks on the input data.
+    nodes : list[str]
+        Ordered list of node names defining bit positions.
+    trap_spaces : list[dict[str, int]]
+        Trap spaces as partial assignments, assumed to be
+        closed under intersection.
+    DEBUG : bool, optional
+        If True, assert full coverage and no duplication.
 
     Returns
     -------
-    tuple[bool, list[list[str]], dict[str, list[list[str]]]]
-        A tuple containing:
-        - A boolean indicating whether the total number of states equals 2^N (N being number of nodes).
-        - A list of lists, where each sublist contains binary state strings corresponding 
-          to each SD node and edge.
-        - A dictionary of duplicate states and their corresponding groups, if any.
-
-    Notes
-    -----
-    It may happen that certain SD nodes do not have a corresponding binary state.
-    In that case, the corresponding sublist in the returned list will be empty.
-    This is to easily compare with sd_nodes, sd_edges, and extra_groups.
-
+    trap_space_states : list[list[str]]
+        For each trap space, the list of binary state strings
+        belonging to it, in the same order as `trap_spaces`.
     """
-    
+
+    trap_space_states: list[list[str]] = []
+
+    for ts in trap_spaces:
+        # All other trap spaces act as exclusions
+        other_spaces = [o for o in trap_spaces if o is not ts]
+
+        states = get_binary_states(
+            nodes=nodes,
+            node_values=ts,
+            exclude_values_list=other_spaces,
+            DEBUG=DEBUG,
+        )
+
+        trap_space_states.append(states)
+
     if DEBUG:
-        seen = set()
-        for sd_node in sd_nodes:
-            # check if all keys of SD_node are in nodes
-            for key in sd_node.keys():
-                if key not in nodes:
-                    raise ValueError(f"Key {key} is not in nodes")
-            
-            # check if all values of SD_node are 0 or 1
-            for value in sd_node.values():
-                if value not in [0, 1]:
-                    raise ValueError(f"Value {value} is not 0 or 1")
-        
-            # check if SD_node is unique
-            dict_frozen_set = frozenset(sd_node.items())
-            if dict_frozen_set in seen:
-                raise ValueError(f"SD_node {sd_node} is not unique")
-            seen.add(dict_frozen_set)
+        N = len(nodes)
 
-        # Check if SD_nodes is not empty
-        if not sd_nodes:
-            raise ValueError("SD_nodes is empty")
+        all_states = [s for group in trap_space_states for s in group]
 
-    sd_group_states = []  # Initialize a list to store states for each group
-    
-    all_subspaces = sd_nodes.copy()
-    for sd_edge in sd_edges:
-        for motif in sd_edge:
-            if motif not in all_subspaces:
-                all_subspaces.append(motif)
-    for extra_group in extra_groups:
-        if extra_group not in all_subspaces:
-            all_subspaces.append(extra_group)
+        # Coverage check
+        if len(all_states) != 2**N:
+            raise AssertionError(
+                f"Total number of states {len(all_states)} "
+                f"does not equal 2^{N}"
+            )
 
-    for sd_node in sd_nodes:
-        # Create a list of other SD nodes excluding the current SD node
-        other_subspaces = all_subspaces.copy()
-        other_subspaces.remove(sd_node)
-        
-        # Generate binary states for the current SD node
-        states = get_binary_states(nodes, sd_node, other_subspaces, DEBUG=DEBUG)
+        # Uniqueness check
+        if len(set(all_states)) != len(all_states):
+            raise AssertionError("Duplicate states detected across trap spaces")
 
-        # Append the generated states to the SD_node_states list
-        sd_group_states.append(states)
-    
-    for sd_edge in sd_edges:
-        edge_states = []
-        for motif in sd_edge:
-            # Do not add motif if it is already in SD_nodes
-            if motif in sd_nodes:
-                continue
+    return trap_space_states
 
-            other_subspaces = all_subspaces.copy()
-            other_subspaces.remove(motif)
-            states = get_binary_states(nodes, motif, other_subspaces, DEBUG=DEBUG)
-            for state in states:
-                if state not in edge_states:
-                    edge_states.append(state)
-
-        sd_group_states.append(sorted(edge_states))
-    
-    for extra_group in extra_groups:
-        other_subspaces = all_subspaces.copy()
-        other_subspaces.remove(extra_group)
-        states = get_binary_states(nodes, extra_group, other_subspaces, DEBUG=DEBUG)
-        sd_group_states.append(states)
-
-    # The number of all states must be equal to 2**N, where N is the number of nodes
-    N = len(nodes)
-    total_states = sum(len(states) for states in sd_group_states)
-    if total_states != 2**N:
-
-        # find the duplicate states
-        all_states = [state for states in sd_group_states for state in states]
-
-        duplicate_states = []
-        for state in all_states:
-            if all_states.count(state) > 1 and state not in duplicate_states:
-                duplicate_states.append(state)
-
-        if duplicate_states:
-            # if DEBUG:
-            #     print(f"{sd_nodes=}")
-            #     print(f"{sd_edges=}")
-
-            duplicate_dict = {}
-
-            for state in duplicate_states:
-                duplicate_dict[state] = []
-                # if DEBUG:
-                #     print(f"Duplicate state: {state}")
-                for i, state_group in enumerate(sd_group_states):
-                    if state in state_group:
-
-                        if i in range(len(sd_nodes)):
-                            duplicate_dict[state].append(sd_nodes[i])
-                            # if DEBUG:
-                            #     print(f"SD node: {sd_nodes[i]}")
-                        elif i in range(len(sd_nodes), len(sd_nodes) + len(sd_edges)):
-                            duplicate_dict[state].append(sd_edges[i - len(sd_nodes)])
-                            # if DEBUG:
-                            #     print(f"SD edge: {sd_edges[i - len(sd_nodes)]}")
-                        else:
-                            duplicate_dict[state].append(extra_groups[i - len(sd_nodes) - len(sd_edges)])
-                            # if DEBUG:
-                            #     print(f"Extra group: {extra_groups[i - len(sd_nodes) - len(sd_edges)]}")
-
-            return False, sd_group_states, duplicate_dict
-    
-    return True, sd_group_states, {}
