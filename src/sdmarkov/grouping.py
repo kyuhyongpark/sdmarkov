@@ -4,8 +4,8 @@ from collections import Counter
 
 import matplotlib.pyplot as plt
 
+from sdmarkov.representation import states_to_indices
 from sdmarkov.succession_diagram import build_sd_trap_spaces, assign_states_to_trap_spaces
-from sdmarkov.helper import states_to_indices
 
 
 def sd_grouping(bnet: str, DEBUG: bool = False) -> list[list[int]]:

@@ -1,7 +1,7 @@
 import numpy as np
 import networkx as nx
 
-from sdmarkov.helper import check_stg
+from sdmarkov.validation import check_stg
 
 
 def get_transition_matrix(stg: nx.DiGraph, update: str = "asynchronous", DEBUG: bool = False) -> np.ndarray:
@@ -71,6 +71,7 @@ def get_transition_matrix(stg: nx.DiGraph, update: str = "asynchronous", DEBUG: 
             raise ValueError("The transition matrix is not a valid probability matrix.")
 
     return transition_matrix
+
 
 def get_hamming_distance_matrix(N: int|None = None, stg: nx.DiGraph|None = None, DEBUG: bool = False) -> np.ndarray:
     """

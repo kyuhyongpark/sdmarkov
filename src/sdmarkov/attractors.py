@@ -1,8 +1,8 @@
 import numpy as np
 
 from sdmarkov.graph import get_stg, get_markov_chain
-from sdmarkov.helper import check_transition_matrix
 from sdmarkov.scc_dags import get_scc_dag, get_attractor_states
+from sdmarkov.validation import check_transition_matrix
 
 
 def attractor_or_transient(T_inf_expanded, DEBUG=False):

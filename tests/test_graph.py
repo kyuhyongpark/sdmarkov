@@ -5,8 +5,10 @@ import numpy as np
 from pyboolnet.external.bnet2primes import bnet_text2primes
 from pyboolnet.state_transition_graphs import primes2stg
 
-from sdmarkov.graph import get_stg, get_markov_chain
-from sdmarkov.helper import check_stg
+from sdmarkov.graph import (
+    get_stg,
+    get_markov_chain,
+)
 from sdmarkov.transition_matrix import get_transition_matrix
 
 

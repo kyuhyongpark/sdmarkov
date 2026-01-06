@@ -1,9 +1,9 @@
 import numpy as np
 
 from sdmarkov.graph import get_stg
-from sdmarkov.helper import check_transition_matrix
-from sdmarkov.transition_matrix import get_hamming_distance_matrix
 from sdmarkov.scc_dags import get_scc_dag, get_scc_states
+from sdmarkov.transition_matrix import get_hamming_distance_matrix
+from sdmarkov.validation import check_transition_matrix
 
 
 def reorder_matrix(matrix: np.ndarray, index_list: list[int]) -> np.ndarray:

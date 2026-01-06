@@ -4,7 +4,11 @@ import numpy as np
 from pyboolnet.external.bnet2primes import bnet_text2primes
 from pyboolnet.state_transition_graphs import primes2stg
 
-from sdmarkov.decisions import get_decision_matrix, expand_decision_matrix, compare_decision_matrices
+from sdmarkov.decisions import (
+    get_decision_matrix,
+    expand_decision_matrix,
+    compare_decision_matrices,
+)
 from sdmarkov.transition_matrix import get_transition_matrix
 
 
