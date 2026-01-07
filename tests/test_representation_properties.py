@@ -297,6 +297,41 @@ class TestDecomposeSubcubesProperties(unittest.TestCase):
                             "Canonical subcube must be contained in its original subcube"
                         )
 
+    @given(nodes_and_closed_trap_spaces())
+    def test_order_invariance(self, data):
+        """
+        Changing the order of intersection-closed input subcubes
+        must not affect the canonical decomposition.
+        """
+        nodes, trap_spaces = data
+        masks, values = partial_assignments_to_masks(trap_spaces, nodes)
+        subcubes = [(masks[:, i], values[:, i], i) for i in range(masks.shape[1])]
+
+        out1 = decompose_subcubes(subcubes)
+
+        shuffled = subcubes[:]
+        np.random.shuffle(shuffled)
+        out2 = decompose_subcubes(shuffled)
+
+        def normalize(output):
+            """
+            Convert output to a set of hashable, order-independent items.
+            """
+            return {
+                (
+                    tuple(mask.tolist()),
+                    tuple(value.tolist()),
+                    group_id
+                )
+                for mask, value, group_id in output
+            }
+
+        self.assertEqual(
+            normalize(out1),
+            normalize(out2),
+            "Canonical decomposition depends on input order"
+        )
+
 
 if __name__ == '__main__':
     unittest.main()

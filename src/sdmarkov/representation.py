@@ -299,27 +299,34 @@ def decompose_subcubes(
     DEBUG: bool = False,
 ) -> List[Subcube]:
     """
-    Decompose a list of subcubes into a canonical, disjoint set of subcubes.
+    Decompose a list of subcubes into a deterministic, disjoint set of subcubes.
 
     Parameters
     ----------
     subcubes : list of (mask, value, group)
-        Each subcube may overlap with others.
-        Input subcubes are expected to be **closed under intersection** for deterministic output.
+        Subcubes that may overlap.
+        The input is expected to be **closed under intersection** for the
+        decomposition to be well-defined.
     DEBUG : bool, optional
-        If True, checks that the input subcubes are intersection-closed, and
+        If True, checks whether the input subcubes are intersection-closed and
         prints a warning if missing intersections are found.
 
     Returns
     -------
     canonical_subcubes : list of (mask, value, group)
-        Disjoint subcubes covering all states represented by the input.
+        Disjoint subcubes whose union equals the union of the input subcubes.
 
     Notes
     -----
-    - The decomposition is order-independent **only if the input is intersection-closed**.
-    - This function does NOT modify the input subcubes; it only splits overlapping regions.
+    - The decomposition is not mathematically unique.
+      This function enforces determinism by internally sorting subcubes
+      using a fixed tie-breaking rule.
+    - The result is independent of the input order, but depends on the
+      chosen internal ordering.
+    - The function does not alter the semantics of the input subcubes;
+      it only partitions overlapping regions.
     """
+
     # ----------------- DEBUG: check intersection closure -----------------
     if DEBUG:
         N = len(subcubes[0][0])
@@ -329,18 +336,22 @@ def decompose_subcubes(
         ]
         if not validate_no_missing_intersections(assignments, DEBUG=True):
             warnings.warn(
-                "Input subcubes are not closed under intersection. "
-                "Canonical decomposition may be order-dependent.",
+                "Input subcubes are not closed under intersection. ",
                 RuntimeWarning
             )
 
     # ----------------- Main decomposition logic -----------------
-    # Sort by specificity (number of constrained bits, descending)
-    sorted_subcubes = sorted(
-        subcubes,
-        key=lambda x: np.sum(x[0]),  # mask.sum()
-        reverse=True
-    )
+    # - Specificity ordering is required for correctness
+    # - Remaining keys exist only to make the result deterministic
+    def subcube_sort_key(subcube):
+        mask, value, _ = subcube
+        return (
+            -int(mask.sum()),           # semantic requirement
+            tuple(mask.astype(int)),    # deterministic geometry
+            tuple(value.astype(int)),
+        )
+
+    sorted_subcubes = sorted(subcubes, key=subcube_sort_key)
 
     canonical: List[Subcube] = []
 
