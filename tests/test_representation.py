@@ -1,9 +1,14 @@
 import unittest
 
+import numpy as np
+
 from sdmarkov.representation import (
     states_to_indices,
     indices_to_states,
+    partial_assignment_to_mask,
+    partial_assignments_to_masks,
 )
+
 
 class TestStatesToIndices(unittest.TestCase):
     def test_valid_input(self):
@@ -97,3 +102,76 @@ class TestIndicesToStates(unittest.TestCase):
         input_data = [[1, 2, 6], [1, 7]]
         with self.assertRaises(ValueError):
             indices_to_states(input_data, 3, DEBUG=True)
+
+
+class TestPartialAssignmentToMaskExamples(unittest.TestCase):
+    def test_empty_assignment(self):
+        nodes = ["A", "B", "C"]
+
+        assignment = {}
+
+        mask, value = partial_assignment_to_mask(assignment, nodes)
+
+        expected_mask = np.array([False, False, False])
+        expected_value = np.array([False, False, False])
+
+        np.testing.assert_array_equal(mask, expected_mask)
+        np.testing.assert_array_equal(value, expected_value)
+
+    def test_single_variable_assignment(self):
+        nodes = ["A", "B", "C"]
+
+        assignment = {"B": 1}
+
+        mask, value = partial_assignment_to_mask(assignment, nodes)
+
+        expected_mask = np.array([False, True, False])
+        expected_value = np.array([False, True, False])
+
+        np.testing.assert_array_equal(mask, expected_mask)
+        np.testing.assert_array_equal(value, expected_value)
+
+    def test_multiple_variable_assignment(self):
+        nodes = ["A", "B", "C", "D"]
+
+        assignment = {"A": 0, "C": 1}
+
+        mask, value = partial_assignment_to_mask(assignment, nodes)
+
+        expected_mask = np.array([True, False, True, False])
+        expected_value = np.array([False, False, True, False])
+
+        np.testing.assert_array_equal(mask, expected_mask)
+        np.testing.assert_array_equal(value, expected_value)
+
+
+class TestPartialAssignmentsToMasksExamples(unittest.TestCase):
+    def test_batch_conversion(self):
+        nodes = ["A", "B", "C"]
+
+        assignments = [
+            {},                 # unconstrained
+            {"A": 1},            # single constraint
+            {"B": 0, "C": 1},    # multiple constraints
+        ]
+
+        mask, value = partial_assignments_to_masks(assignments, nodes)
+
+        expected_mask = np.array([
+            [False, True,  False],
+            [False, False, True ],
+            [False, False, True ],
+        ])
+
+        expected_value = np.array([
+            [False, True,  False],
+            [False, False, False],
+            [False, False, True ],
+        ])
+
+        np.testing.assert_array_equal(mask, expected_mask)
+        np.testing.assert_array_equal(value, expected_value)
+
+
+if __name__ == '__main__':
+    unittest.main()

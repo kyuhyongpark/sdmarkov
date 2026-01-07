@@ -84,3 +84,84 @@ def indices_to_states(index_groups: list[list[int]], N: int, DEBUG: bool = False
     
     return state_groups
 
+
+def partial_assignment_to_mask(
+    assignment: dict[str, int],
+    nodes: list[str],
+) -> tuple[
+    np.ndarray,  # mask:  (N,), bool
+    np.ndarray,  # value: (N,), bool
+]:
+    """
+    Convert a single partial assignment into mask/value vectors.
+
+    Parameters
+    ----------
+    assignment
+        Mapping from node name to 0 or 1. Missing nodes are unconstrained.
+    nodes
+        Fixed ordering of all variables.
+
+    Returns
+    -------
+    mask
+        Boolean array of shape (N,). True where the variable is constrained.
+    value
+        Boolean array of shape (N,). Value is meaningful only where mask is True.
+        But it must be set to False where mask is False.
+    
+    Notes
+    -----
+    The returned (mask, value) pair satisfies the invariant that
+    value[i] == False whenever mask[i] == False,
+    so that membership can be tested via (state & mask) == value.
+    """
+    N = len(nodes)
+
+    mask = np.zeros(N, dtype=bool)
+    value = np.zeros(N, dtype=bool)
+
+    for i, node in enumerate(nodes):
+        if node in assignment:
+            mask[i] = True
+            value[i] = bool(assignment[node])
+
+    return mask, value
+
+
+def partial_assignments_to_masks(
+    assignments: list[dict[str, int]],
+    nodes: list[str],
+) -> tuple[
+    np.ndarray,  # mask:  (N, K), bool
+    np.ndarray,  # value: (N, K), bool
+]:
+    """
+    Convert a list of partial assignments into mask/value matrices.
+
+    Parameters
+    ----------
+    assignments
+        List of partial assignments.
+    nodes
+        Fixed ordering of all variables.
+
+    Returns
+    -------
+    mask
+        Boolean array of shape (N, K).
+    value
+        Boolean array of shape (N, K).
+    """
+    N = len(nodes)
+    K = len(assignments)
+
+    mask = np.zeros((N, K), dtype=bool)
+    value = np.zeros((N, K), dtype=bool)
+
+    for k, assignment in enumerate(assignments):
+        m, v = partial_assignment_to_mask(assignment, nodes)
+        mask[:, k] = m
+        value[:, k] = v
+
+    return mask, value
