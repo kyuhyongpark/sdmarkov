@@ -7,6 +7,11 @@ from sdmarkov.representation import (
     indices_to_states,
     partial_assignment_to_mask,
     partial_assignments_to_masks,
+    mask_to_partial_assignment,
+    mask_value_to_pattern,
+    subtract_subcube,
+    decompose_subcubes,
+    Subcube,
 )
 
 
@@ -171,6 +176,182 @@ class TestPartialAssignmentsToMasksExamples(unittest.TestCase):
 
         np.testing.assert_array_equal(mask, expected_mask)
         np.testing.assert_array_equal(value, expected_value)
+
+
+class TestMaskToPartialAssignment(unittest.TestCase):
+    def test_basic_example(self):
+        mask = np.array([1, 0, 1, 0], dtype=bool)
+        value = np.array([1, 0, 0, 1], dtype=bool)
+        nodes = ['A', 'B', 'C', 'D']
+
+        pa = mask_to_partial_assignment(mask, value, nodes)
+        expected = {'A': 1, 'C': 0}
+
+        self.assertEqual(pa, expected)
+
+    def test_default_node_names(self):
+        mask = np.array([1, 0, 1], dtype=bool)
+        value = np.array([0, 1, 1], dtype=bool)
+
+        pa = mask_to_partial_assignment(mask, value)
+        expected = {'0': 0, '2': 1}
+
+        self.assertEqual(pa, expected)
+
+    def test_empty_mask(self):
+        mask = np.array([0, 0], dtype=bool)
+        value = np.array([1, 0], dtype=bool)
+
+        pa = mask_to_partial_assignment(mask, value)
+        self.assertEqual(pa, {})  # No constrained bits
+
+
+class TestMaskValueToPattern(unittest.TestCase):
+    def test_basic_patterns(self):
+        mask = np.array([1, 0, 1, 0], dtype=bool)
+        value = np.array([0, 0, 1, 0], dtype=bool)
+
+        self.assertEqual(mask_value_to_pattern(mask, value), "0*1*")
+
+    def test_all_free(self):
+        mask = np.array([0, 0, 0], dtype=bool)
+        value = np.array([0, 1, 0], dtype=bool)  # ignored
+
+        self.assertEqual(mask_value_to_pattern(mask, value), "***")
+
+    def test_all_fixed(self):
+        mask = np.array([1, 1, 1], dtype=bool)
+        value = np.array([1, 0, 1], dtype=bool)
+
+        self.assertEqual(mask_value_to_pattern(mask, value), "101")
+
+
+class TestSubtractSubcubeExamples(unittest.TestCase):
+    def test_no_overlap(self):
+        nodes = ["A", "B", "C"]
+
+        A = partial_assignment_to_mask({"A": 0}, nodes)   # 0**
+        B = partial_assignment_to_mask({"A": 1}, nodes)   # 1**
+
+        res = subtract_subcube(A, B)
+
+        patterns = [mask_value_to_pattern(m, v) for m, v in res]
+        self.assertEqual(patterns, ["0**"])
+
+    def test_full_coverage(self):
+        nodes = ["A", "B"]
+
+        A = partial_assignment_to_mask({"A": 1}, nodes)   # 1*
+        B = partial_assignment_to_mask({"A": 1}, nodes)   # 1*
+
+        res = subtract_subcube(A, B)
+
+        self.assertEqual(res, [])
+
+    def test_simple_partial_overlap(self):
+        nodes = ["A", "B"]
+
+        A = partial_assignment_to_mask({}, nodes)         # **
+        B = partial_assignment_to_mask({"A": 0}, nodes)   # 0*
+
+        res = subtract_subcube(A, B)
+
+        patterns = sorted(
+            mask_value_to_pattern(m, v) for m, v in res
+        )
+
+        self.assertEqual(patterns, ["1*"])
+
+    def test_given_example(self):
+        """
+        A: 1*0*
+        B: 10*1
+
+        A \\ B:
+          110*
+          1000
+        """
+        nodes = ["A", "B", "C", "D"]
+
+        A = partial_assignment_to_mask(
+            {"A": 1, "C": 0},
+            nodes,
+        )  # 1*0*
+
+        B = partial_assignment_to_mask(
+            {"A": 1, "B": 0, "D": 1},
+            nodes,
+        )  # 10*1
+
+        res = subtract_subcube(A, B)
+
+        patterns = sorted(
+            mask_value_to_pattern(m, v) for m, v in res
+        )
+
+        self.assertEqual(patterns, ["1000", "110*"])
+
+
+class TestDecomposeSubcubes(unittest.TestCase):
+    def _mask_value(self, pattern: str):
+        """
+        Helper: convert string pattern like '1*0*' to (mask, value)
+        """
+        mask = np.array([c != '*' for c in pattern], dtype=bool)
+        value = np.array([c == '1' for c in pattern], dtype=bool)
+        return mask, value
+
+    def _canonical_patterns(self, subcubes: list[Subcube]):
+        """
+        Helper: return human-readable patterns from canonical subcubes
+        """
+        return [mask_value_to_pattern(m, v) for m, v, _ in subcubes]
+
+    def test_simple_no_overlap(self):
+        # A = 1*0*, B = 0*1*
+        subcubes = [
+            (*self._mask_value('1*0*'), 'A'),
+            (*self._mask_value('0*1*'), 'B'),
+        ]
+        canonical = decompose_subcubes(subcubes)
+        patterns = self._canonical_patterns(canonical)
+        self.assertCountEqual(patterns, ['1*0*', '0*1*'])
+
+    def test_simple_overlap(self):
+        # A = 1*0*, B = 10*1
+        subcubes = [
+            (*self._mask_value('1*0*'), 'A'),
+            (*self._mask_value('10*1'), 'B'),
+            (*self._mask_value('1001'), 'C'),
+        ]
+        canonical = decompose_subcubes(subcubes)
+        patterns = self._canonical_patterns(canonical)
+        # Expected: A\B produces 110* and 1000
+        self.assertCountEqual(patterns, ['110*', '1000', '1011', '1001'])
+
+    def test_full_overlap(self):
+        # A = 1*0*, B = 1*0*
+        subcubes = [
+            (*self._mask_value('1*0*'), 'A'),
+            (*self._mask_value('1*0*'), 'B'),
+        ]
+        canonical = decompose_subcubes(subcubes)
+        patterns = self._canonical_patterns(canonical)
+        # They are identical, the first dominates, second gets subtracted
+        self.assertCountEqual(patterns, ['1*0*'])
+
+    def test_nested_subcubes(self):
+        # A = ***, B = 1*0
+        subcubes = [
+            (*self._mask_value('***'), 'A'),
+            (*self._mask_value('1*0'), 'B'),
+        ]
+        canonical = decompose_subcubes(subcubes)
+        patterns = self._canonical_patterns(canonical)
+        # B is fully inside A, so A\B = 0**, 1*1
+        self.assertIn('1*0', patterns)
+        self.assertIn('0**', patterns)
+        self.assertIn('1*1', patterns)
 
 
 if __name__ == '__main__':

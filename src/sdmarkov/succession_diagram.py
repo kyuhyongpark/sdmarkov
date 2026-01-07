@@ -1,3 +1,4 @@
+import warnings
 from itertools import product
 
 import biobalm
@@ -286,11 +287,11 @@ def build_sd_trap_spaces(
 
     # Stage 3: validate once
     if not validate_no_missing_intersections(all_ts, DEBUG=DEBUG):
-        if DEBUG:
-            print(
-                "WARNING: Missing intersections after merging node trap spaces. "
-                "Performing full closure."
-            )
+        warnings.warn(
+            "WARNING: Missing intersections after merging node trap spaces. "
+            "Performing full closure.",
+            RuntimeWarning
+        )
         all_ts = close_trap_spaces_under_intersection(all_ts, DEBUG=DEBUG)
 
     all_ts = sort_sd_nodes(nodes, all_ts, DEBUG=DEBUG)

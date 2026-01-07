@@ -1,4 +1,16 @@
+import warnings
+
 import numpy as np
+from typing import List, Tuple
+
+from sdmarkov.succession_diagram import validate_no_missing_intersections
+
+# Type aliases for clarity
+Mask = np.ndarray  # shape (N,), bool
+Value = np.ndarray  # shape (N,), bool
+Subcube = Tuple[Mask, Value, str]  # (mask, value, group_name)
+Masks = np.ndarray  # shape (N, K), bool
+Values = np.ndarray  # shape (N, K), bool
 
 
 def states_to_indices(state_groups: list[list[str]], DEBUG: bool = False) -> list[list[int]]:
@@ -88,10 +100,7 @@ def indices_to_states(index_groups: list[list[int]], N: int, DEBUG: bool = False
 def partial_assignment_to_mask(
     assignment: dict[str, int],
     nodes: list[str],
-) -> tuple[
-    np.ndarray,  # mask:  (N,), bool
-    np.ndarray,  # value: (N,), bool
-]:
+) -> tuple[Mask, Value]:
     """
     Convert a single partial assignment into mask/value vectors.
 
@@ -104,9 +113,9 @@ def partial_assignment_to_mask(
 
     Returns
     -------
-    mask
+    mask : Mask
         Boolean array of shape (N,). True where the variable is constrained.
-    value
+    value : Value
         Boolean array of shape (N,). Value is meaningful only where mask is True.
         But it must be set to False where mask is False.
     
@@ -116,6 +125,7 @@ def partial_assignment_to_mask(
     value[i] == False whenever mask[i] == False,
     so that membership can be tested via (state & mask) == value.
     """
+
     N = len(nodes)
 
     mask = np.zeros(N, dtype=bool)
@@ -132,10 +142,7 @@ def partial_assignment_to_mask(
 def partial_assignments_to_masks(
     assignments: list[dict[str, int]],
     nodes: list[str],
-) -> tuple[
-    np.ndarray,  # mask:  (N, K), bool
-    np.ndarray,  # value: (N, K), bool
-]:
+) -> tuple[Masks, Values]:
     """
     Convert a list of partial assignments into mask/value matrices.
 
@@ -148,10 +155,11 @@ def partial_assignments_to_masks(
 
     Returns
     -------
-    mask
-        Boolean array of shape (N, K).
-    value
-        Boolean array of shape (N, K).
+    mask : Masks
+        Boolean array of shape (N, K). True where the variable is constrained.
+    value : Values
+        Boolean array of shape (N, K). Value is meaningful only where mask is True.
+        But it must be set to False where mask is False.
     """
     N = len(nodes)
     K = len(assignments)
@@ -165,3 +173,187 @@ def partial_assignments_to_masks(
         value[:, k] = v
 
     return mask, value
+
+
+def mask_to_partial_assignment(
+    mask: np.ndarray,
+    value: np.ndarray,
+    nodes: list[str] | None = None
+) -> dict[str, int]:
+    """
+    Convert a mask/value pair to a partial assignment dictionary.
+
+    Parameters
+    ----------
+    mask : np.ndarray, shape (N,), bool
+        Boolean mask indicating which bits are constrained.
+    value : np.ndarray, shape (N,), bool
+        Values for constrained bits. Value is ignored where mask is False.
+    nodes : list[str], optional
+        Names of nodes. If None, defaults to ["0", "1", "2", ..., "N-1"].
+
+    Returns
+    -------
+    dict[str, int]
+        Mapping from node name to 0 or 1 for all constrained bits.
+    """
+    N = len(mask)
+    if nodes is None:
+        nodes = [str(i) for i in range(N)]
+    if len(nodes) != N:
+        raise ValueError(f"Length of nodes ({len(nodes)}) must match length of mask ({N}).")
+
+    assignment = {nodes[i]: int(value[i]) for i in range(N) if mask[i]}
+    return assignment
+
+
+def mask_value_to_pattern(
+    mask: Mask,
+    value: Value,
+) -> str:
+    """
+    Convert a (mask, value) pair into a human-readable pattern string.
+
+    The pattern uses:
+    - '*' for unconstrained bits (mask == 0)
+    - '0' for constrained zeros (mask == 1, value == 0)
+    - '1' for constrained ones  (mask == 1, value == 1)
+
+    Examples
+    --------
+    mask  = [1, 0, 1, 0]
+    value = [0, 0, 1, 0]
+    -> '0*1*'
+    """
+    chars = []
+    for m, v in zip(mask, value):
+        if not m:
+            chars.append("*")
+        else:
+            chars.append("1" if v else "0")
+    return "".join(chars)
+
+
+def subtract_subcube(
+    A: tuple[Mask, Value],
+    B: tuple[Mask, Value],
+) -> list[tuple[Mask, Value]]:
+    """
+    Return a disjoint decomposition of A \\ B.
+
+    Parameters
+    ----------
+    A : (mask, value)
+        The minuend subcube.
+    B : (mask, value)
+        The subtrahend subcube.
+
+    Returns
+    -------
+    list of (mask, value)
+        Pairwise disjoint subcubes whose union equals A \\ B.
+
+    Notes
+    -----
+    - If A and B do not overlap, returns [A].
+    - If B fully covers A, returns [].
+    """
+
+    mA, vA = A
+    mB, vB = B
+    N = len(mA)
+
+    # Check for incompatibility on fixed bits: no overlap
+    for i in range(N):
+        if mA[i] and mB[i] and vA[i] != vB[i]:
+            return [(mA.copy(), vA.copy())]
+
+    # Indices where A is free but B is fixed
+    free_but_fixed = [
+        i for i in range(N)
+        if not mA[i] and mB[i]
+    ]
+
+    residual = []
+
+    for k, i in enumerate(free_but_fixed):
+        m = mA.copy()
+        v = vA.copy()
+
+        # Match B on earlier bits
+        for j in free_but_fixed[:k]:
+            m[j] = True
+            v[j] = vB[j]
+
+        # Deviate from B at bit i
+        m[i] = True
+        v[i] = not vB[i]
+
+        residual.append((m, v))
+
+    return residual
+
+
+def decompose_subcubes(
+    subcubes: List[Subcube],
+    DEBUG: bool = False,
+) -> List[Subcube]:
+    """
+    Decompose a list of subcubes into a canonical, disjoint set of subcubes.
+
+    Parameters
+    ----------
+    subcubes : list of (mask, value, group)
+        Each subcube may overlap with others.
+        Input subcubes are expected to be **closed under intersection** for deterministic output.
+    DEBUG : bool, optional
+        If True, checks that the input subcubes are intersection-closed, and
+        prints a warning if missing intersections are found.
+
+    Returns
+    -------
+    canonical_subcubes : list of (mask, value, group)
+        Disjoint subcubes covering all states represented by the input.
+
+    Notes
+    -----
+    - The decomposition is order-independent **only if the input is intersection-closed**.
+    - This function does NOT modify the input subcubes; it only splits overlapping regions.
+    """
+    # ----------------- DEBUG: check intersection closure -----------------
+    if DEBUG:
+        N = len(subcubes[0][0])
+        assignments = [
+            mask_to_partial_assignment(mask, value)
+            for mask, value, _ in subcubes
+        ]
+        if not validate_no_missing_intersections(assignments, DEBUG=True):
+            warnings.warn(
+                "Input subcubes are not closed under intersection. "
+                "Canonical decomposition may be order-dependent.",
+                RuntimeWarning
+            )
+
+    # ----------------- Main decomposition logic -----------------
+    # Sort by specificity (number of constrained bits, descending)
+    sorted_subcubes = sorted(
+        subcubes,
+        key=lambda x: np.sum(x[0]),  # mask.sum()
+        reverse=True
+    )
+
+    canonical: List[Subcube] = []
+
+    for mask, value, group in sorted_subcubes:
+        pending: List[tuple[Mask, Value]] = [(mask.copy(), value.copy())]
+
+        for cm, cv, _ in canonical:
+            new_pending: List[tuple[Mask, Value]] = []
+            for m, v in pending:
+                new_pending.extend(subtract_subcube((m, v), (cm, cv)))
+            pending = new_pending
+
+        for m, v in pending:
+            canonical.append((m, v, group))
+
+    return canonical
