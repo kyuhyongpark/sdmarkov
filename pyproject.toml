@@ -24,6 +24,7 @@ dev = [
 ]
 gpu = [
     "cupy-cuda11x==13.6.0",
+    "cubewalkers @ git+https://github.com/jcrozum/cubewalkers",
 ]
 
 [tool.setuptools]
