@@ -52,11 +52,12 @@ def prepare_group_sampler(
     id_to_group_name = []
     group_ids_py = []
 
-    for g in group_names:
-        if g not in group_name_to_id:
-            group_name_to_id[g] = len(group_name_to_id)
-            id_to_group_name.append(g)
-        group_ids_py.append(group_name_to_id[g])
+    # Get unique group names
+    unique_names = sorted(set(group_names))
+
+    group_name_to_id = {name: i for i, name in enumerate(unique_names)}
+    id_to_group_name = list(unique_names)
+    group_ids_py = [group_name_to_id[g] for g in group_names]
 
     group_ids = xp.asarray(group_ids_py, int)
 
