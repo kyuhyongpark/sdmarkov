@@ -106,7 +106,7 @@ def sample_walkers_from_group(sampler, target_group, n_walkers, xp):
 
     # normalize
     probs = weights / weights.sum()
-    subcube_idx = xp.random.choice(ks, size=n_walkers, p=probs)
+    subcube_idx = xp.random.choice(ks, size=n_walkers, p=probs)  # (W,)
 
     N = sampler.masks.shape[0]
     W = n_walkers
@@ -114,12 +114,20 @@ def sample_walkers_from_group(sampler, target_group, n_walkers, xp):
     # random free bits
     states = xp.random.randint(0, 2, size=(N, W), dtype=xp.int8).astype(bool)
 
-    # project onto subcubes
-    for i in range(W):
-        k = int(subcube_idx[i])
-        m = sampler.masks[:, k]
-        v = sampler.values[:, k]
-        states[m, i] = v[m]
+    # --- vectorized mask application ---
+    # simplest approach: directly index masks/values by chosen subcube
+    mask_matrix = sampler.masks[:, subcube_idx]    # (N, W)
+    value_matrix = sampler.values[:, subcube_idx]  # (N, W)
+
+    # --- Optional future optimization using unique subcubes ---
+    # unique_ks, inverse = xp.unique(subcube_idx, return_inverse=True)
+    # mask_matrix = xp.stack([sampler.masks[:, k] for k in unique_ks], axis=1)  # (N, K')
+    # value_matrix = xp.stack([sampler.values[:, k] for k in unique_ks], axis=1)  # (N, K')
+    # one_hot = xp.eye(len(unique_ks), dtype=bool)[:, inverse]  # (K', W)
+    # states = (states[:, None, :] & ~mask_matrix[:, :, None]) | (value_matrix[:, :, None] & mask_matrix[:, :, None])
+    # states = xp.any(states & one_hot[None, :, :], axis=1)
+
+    # apply masks
+    states = (states & ~mask_matrix) | (value_matrix & mask_matrix)
 
     return states
-
