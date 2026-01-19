@@ -42,6 +42,8 @@ def prepare_group_sampler(
     if K == 0:
         raise ValueError("No canonical subcubes provided")
 
+    group_order = {group: i for i, (_, _, group) in enumerate(canonical_subcubes)}
+
     masks_list, values_list, group_names = zip(*canonical_subcubes)
 
     masks = xp.stack([xp.asarray(m, dtype=bool) for m in masks_list], axis=1)
@@ -52,8 +54,8 @@ def prepare_group_sampler(
     id_to_group_name = []
     group_ids_py = []
 
-    # Get unique group names
-    unique_names = sorted(set(group_names))
+    # Get unique group names but preserve original ordering
+    unique_names = sorted(set(group_names),key=lambda g: group_order[g])
 
     group_name_to_id = {name: i for i, name in enumerate(unique_names)}
     id_to_group_name = list(unique_names)

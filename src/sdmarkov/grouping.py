@@ -24,7 +24,7 @@ def sd_grouping(bnet: str, DEBUG: bool = False) -> list[list[int]]:
     Examples
     --------
     >>> sd_grouping("A, A | B & C\nB, B & !C\nC, B & !C | !C & !D | !B & C & D\nD, !A & !B & !C & !D | !A & C & D")
-    [[4, 5, 6, 7], [], [0, 1, 2], [3], [12, 14], [8, 10], [13, 15], [9, 11]]
+    [[4, 5, 6, 7], [0, 1, 2], [3], [13, 15], [12, 14], [9, 11], [8, 10]]
     """
     nodes, trap_spaces = build_sd_trap_spaces(bnet, DEBUG=DEBUG)
     sd_group_states = assign_states_to_trap_spaces(nodes, trap_spaces, DEBUG=DEBUG)

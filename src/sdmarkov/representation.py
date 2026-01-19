@@ -340,6 +340,8 @@ def decompose_subcubes(
                 RuntimeWarning
             )
 
+    group_order = {group: i for i, (_, _, group) in enumerate(subcubes)}
+
     # ----------------- Main decomposition logic -----------------
     # - Specificity ordering is required for correctness
     # - Remaining keys exist only to make the result deterministic
@@ -367,4 +369,6 @@ def decompose_subcubes(
         for m, v in pending:
             canonical.append((m, v, group))
 
+    canonical.sort(key=lambda subcube: group_order[subcube[2]])
     return canonical
+
