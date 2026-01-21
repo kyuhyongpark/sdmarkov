@@ -60,7 +60,7 @@ class TestSampleWalkersFromGroup(unittest.TestCase):
         xp = self.xp
         W = 2000
 
-        states = sample_walkers_from_group(self.sampler, target_group="A", n_walkers=W, xp=xp)
+        states, subcube_idx = sample_walkers_from_group(self.sampler, target_group="A", n_walkers=W, xp=xp)
 
         # valid states for group A are {00, 01, 10}
         allowed = {(0,0), (0,1), (1,0)}
@@ -73,7 +73,7 @@ class TestSampleWalkersFromGroup(unittest.TestCase):
         xp = self.xp
         W = 500
 
-        states = sample_walkers_from_group(self.sampler, target_group="B", n_walkers=W, xp=xp)
+        states, subcube_idx = sample_walkers_from_group(self.sampler, target_group="B", n_walkers=W, xp=xp)
 
         for i in range(W):
             self.assertEqual(tuple(states[:, i].tolist()), (1,1))
@@ -94,8 +94,8 @@ class TestUsingCupy(unittest.TestCase):
 
         W = 10000
 
-        states_np = sample_walkers_from_group(sampler_np, "A", W, xp=np)
-        states_cp = sample_walkers_from_group(sampler_cp, "A", W, xp=cp)
+        states_np, _ = sample_walkers_from_group(sampler_np, "A", W, xp=np)
+        states_cp, _ = sample_walkers_from_group(sampler_cp, "A", W, xp=cp)
 
         # move cupy result to cpu
         states_cp = cp.asnumpy(states_cp)

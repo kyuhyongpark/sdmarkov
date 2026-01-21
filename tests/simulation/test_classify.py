@@ -21,7 +21,7 @@ class TestClassifyWalkers(unittest.TestCase):
         sampler = make_test_sampler(np)
         # Single walker in group A
         states = np.array([[0], [0], [0]], bool)  # shape (N=3, W=1)
-        groups = classify_walkers(states, sampler, np)
+        groups, subcube_idx = classify_walkers(states, sampler, np)
         self.assertEqual(groups[0], sampler.group_name_to_id["A"])
 
     def test_multiple_walkers(self):
@@ -32,7 +32,7 @@ class TestClassifyWalkers(unittest.TestCase):
             [0, 1],
             [0, 1],
         ], bool)  # shape (N=3, W=2)
-        groups = classify_walkers(states, sampler, np)
+        groups, subcube_idx = classify_walkers(states, sampler, np)
         self.assertEqual(groups[0], sampler.group_name_to_id["A"])
         self.assertEqual(groups[1], sampler.group_name_to_id["B"])
 
@@ -40,7 +40,7 @@ class TestClassifyWalkers(unittest.TestCase):
         sampler = make_test_sampler(np)
         # Three walkers all in group B
         states = np.ones((3, 3), bool)  # shape (3,3)
-        groups = classify_walkers(states, sampler, np)
+        groups, subcube_idx = classify_walkers(states, sampler, np)
         expected_id = sampler.group_name_to_id["B"]
         for g in groups:
             self.assertEqual(g, expected_id)

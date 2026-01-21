@@ -111,7 +111,7 @@ class TestSampleWalkersFromGroupProperties(unittest.TestCase):
         N = len(nodes)
         W = 2000 * max(1, 2**N)
         W = min(W, 20000)
-        states = sample_walkers_from_group(sampler, g, W, xp=np)
+        states, subcube_idx = sample_walkers_from_group(sampler, g, W, xp=np)
 
         # ----- Semantic validity -----
         for i in range(W):

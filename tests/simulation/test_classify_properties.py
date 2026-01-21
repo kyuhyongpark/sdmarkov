@@ -82,7 +82,7 @@ class TestClassifyWalkersProperty(unittest.TestCase):
         states = xp.random.randint(0, 2, size=(N, W), dtype=bool)
 
         # --- Classification ---
-        group_ids = classify_walkers(states, sampler, xp=xp)
+        group_ids, subcube_idx = classify_walkers(states, sampler, xp=xp)
 
         # --- Every walker is classified and belongs to exactly one group ---
         self.assertEqual(group_ids.shape, (W,))
@@ -90,7 +90,7 @@ class TestClassifyWalkersProperty(unittest.TestCase):
             self.assertIn(int(gid), sampler.groups)
 
         # --- Idempotence ---
-        group_ids2 = classify_walkers(states, sampler, xp=xp)
+        group_ids2, subcube_idx = classify_walkers(states, sampler, xp=xp)
         self.assertTrue(xp.all(group_ids == group_ids2))
 
         # --- Permutation invariance ---
@@ -99,7 +99,7 @@ class TestClassifyWalkersProperty(unittest.TestCase):
         xp.random.shuffle(canonical_shuffled)
         sampler_shuffled = prepare_group_sampler(canonical_shuffled, xp=xp)
 
-        group_ids_shuffled = classify_walkers(states, sampler_shuffled, xp=xp)
+        group_ids_shuffled, subcube_idx = classify_walkers(states, sampler_shuffled, xp=xp)
         
         id_to_name = sampler.id_to_group_name
         group_names_original = [id_to_name[gid] for gid in group_ids]

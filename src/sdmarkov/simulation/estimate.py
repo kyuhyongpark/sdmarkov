@@ -96,7 +96,7 @@ def estimate_sd_transition_matrix(
 
     for group_name, i in sampler.group_name_to_id.items():
         # Sample walkers from source group
-        states = sample_walkers_from_group(
+        states, prev_subcube_idx = sample_walkers_from_group(
             sampler,
             target_group=group_name,
             n_walkers=n_walkers,
@@ -112,10 +112,11 @@ def estimate_sd_transition_matrix(
         )
 
         # Classify destination groups
-        labels = classify_walkers(
+        labels, subcube_idx = classify_walkers(
             states_next,
             sampler,
             xp=xp,
+            prev_subcube_idx=prev_subcube_idx,
         )
 
         counts = np.bincount(

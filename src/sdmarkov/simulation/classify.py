@@ -1,38 +1,59 @@
-def classify_walkers(states, sampler, xp):
+def classify_walkers(states, sampler, xp, prev_subcube_idx=None):
     """
-    Classify each walker into its canonical subcube / group
-    using early exit to reduce work and memory.
+    Classify walkers with fast-path using previous subcube index.
 
     Args:
         states: (N, W) boolean array
-        sampler: GroupSampler object
+        sampler: GroupSampler
         xp: np or cp
+        prev_subcube_idx: (W,) int array of previous k, or None
 
     Returns:
         group_ids: (W,) int array
+        subcube_idx: (W,) int array
     """
     N, W = states.shape
     K = sampler.masks.shape[1]
 
     group_ids = xp.full(W, -1, dtype=int)
-    active = xp.ones(W, dtype=bool)   # walkers not yet classified
+    subcube_idx = xp.full(W, -1, dtype=int)
+    active = xp.ones(W, dtype=bool)
 
+    # --- Fast path: check previous subcube first ---
+    if prev_subcube_idx is not None:
+        for k in xp.unique(prev_subcube_idx):
+            idx = xp.where((prev_subcube_idx == k) & active)[0]
+            if idx.size == 0:
+                continue
+
+            mask_k = sampler.masks[:, k][:, None]
+            value_k = sampler.values[:, k][:, None]
+
+            hit = xp.all((states[:, idx] & mask_k) == value_k, axis=0)
+
+            if hit.any():
+                matched = idx[hit]
+                group_ids[matched] = sampler.group_ids[k]
+                subcube_idx[matched] = k
+                active[matched] = False
+
+    # --- Fallback: normal early-exit scan ---
     for k in range(K):
         if not active.any():
             break
 
-        mask_k = sampler.masks[:, k][:, None]     # (N, 1)
-        value_k = sampler.values[:, k][:, None]   # (N, 1)
+        mask_k = sampler.masks[:, k][:, None]
+        value_k = sampler.values[:, k][:, None]
 
-        states_a = states[:, active]               # (N, Wa)
-        hit = xp.all((states_a & mask_k) == value_k, axis=0)  # (Wa,)
+        idx = xp.where(active)[0]
+        hit = xp.all((states[:, idx] & mask_k) == value_k, axis=0)
 
         if hit.any():
-            idx = xp.nonzero(active)[0][hit]
-            group_ids[idx] = sampler.group_ids[k]
-            active[idx] = False
+            matched = idx[hit]
+            group_ids[matched] = sampler.group_ids[k]
+            subcube_idx[matched] = k
+            active[matched] = False
 
-    # Semantic invariant: exactly one match per walker
     assert xp.all(group_ids >= 0), "Semantic invariant violated"
 
-    return group_ids
+    return group_ids, subcube_idx
