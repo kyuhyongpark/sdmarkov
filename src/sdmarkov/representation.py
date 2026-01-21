@@ -261,21 +261,24 @@ def subtract_subcube(
 
     mA, vA = A
     mB, vB = B
-    N = len(mA)
 
-    # Check for incompatibility on fixed bits: no overlap
-    for i in range(N):
-        if mA[i] and mB[i] and vA[i] != vB[i]:
-            return [(mA.copy(), vA.copy())]
+    # ---------- Fast incompatibility test (no overlap) ----------
+    # Overlap requires: for all fixed bits in both, values agree
+    conflict = (mA & mB) & (vA != vB)
+    if conflict.any():
+        # IMPORTANT: safe to return original references here
+        return [(mA, vA)]
 
-    # Indices where A is free but B is fixed
-    free_but_fixed = [
-        i for i in range(N)
-        if not mA[i] and mB[i]
-    ]
+    # ---------- Indices where A is free but B is fixed ----------
+    free_but_fixed = np.nonzero(~mA & mB)[0]
+
+    # If B fixes nothing that A leaves free, then B fully covers A
+    if free_but_fixed.size == 0:
+        return []
 
     residual = []
 
+    # ---------- Construct residual fragments ----------
     for k, i in enumerate(free_but_fixed):
         m = mA.copy()
         v = vA.copy()
@@ -287,7 +290,7 @@ def subtract_subcube(
 
         # Deviate from B at bit i
         m[i] = True
-        v[i] = not vB[i]
+        v[i] = ~vB[i]
 
         residual.append((m, v))
 
@@ -355,19 +358,60 @@ def decompose_subcubes(
 
     sorted_subcubes = sorted(subcubes, key=subcube_sort_key)
 
-    canonical: List[Subcube] = []
+    canonical = []
+    index = {}  # (i, bit) -> set of keys
+    canon_map = {}  # key -> (m, v, group)
+
+    def key_of(m, v):
+        return (m.tobytes(), v.tobytes())
+
+    def candidate_entries(mask, value):
+        pools = []
+        for i, fixed in enumerate(mask):
+            if fixed:
+                pools.append(index.get((i, value[i]), set()))
+        if not pools:
+            return canonical
+        keys = set().union(*pools)
+        return (canon_map[k] for k in keys)
+
+    def restrictiveness(m):
+        return int(m.sum())
+
 
     for mask, value, group in sorted_subcubes:
         pending: List[tuple[Mask, Value]] = [(mask.copy(), value.copy())]
 
-        for cm, cv, _ in canonical:
-            new_pending: List[tuple[Mask, Value]] = []
+        canon_iter = sorted(
+            candidate_entries(mask, value),
+            key=lambda e: restrictiveness(e[0]),
+            reverse=True
+        )
+        
+        for cm, cv, _ in canon_iter:
+            if not pending:
+                break
+            new_pending = []
             for m, v in pending:
-                new_pending.extend(subtract_subcube((m, v), (cm, cv)))
+                # Fast incompatibility check (no overlap)
+                conflict = (m & cm) & (v != cv)
+                if conflict.any():
+                    new_pending.append((m, v))
+                else:
+                    # Possible overlap, do full subtraction
+                    new_pending.extend(subtract_subcube((m, v), (cm, cv)))
             pending = new_pending
 
         for m, v in pending:
+            key = key_of(m, v)
+
             canonical.append((m, v, group))
+            canon_map[key] = (m, v, group)
+
+            for i, fixed in enumerate(m):
+                if fixed:
+                    index.setdefault((i, v[i]), set()).add(key)
+
 
     canonical.sort(key=lambda subcube: group_order[subcube[2]])
     return canonical
