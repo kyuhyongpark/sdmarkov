@@ -26,6 +26,7 @@ def estimate_sd_transition_matrix(
     n_walkers: int,
     xp=cp,
     return_aux=False,
+    threads_per_block=(16,16),
 ):
     """
     Estimate the SD-grouped transition matrix via Monte Carlo simulation.
@@ -40,7 +41,10 @@ def estimate_sd_transition_matrix(
         Backend array module (default: cupy).
     return_aux : bool
         If True, also return auxiliary objects (sampler, nodes, trap spaces).
-
+    threads_per_block : tuple[int, int], optional
+        How many threads should be in each block for each dimension of the N
+        x W array, by default `(16, 16)`. See CUDA documentation for details.
+        
     Returns
     -------
     T_empirical : np.ndarray
@@ -104,6 +108,7 @@ def estimate_sd_transition_matrix(
             states=states,
             sampler_nodes=ts_nodes,
             model=cw_step,
+            threads_per_block=threads_per_block,
         )
 
         # Classify destination groups

@@ -57,9 +57,13 @@ class CWSingleStep:
 
         self.model.initial_states = states
 
-    def simulate_step(self) -> cp.ndarray:
+    def simulate_step(self, threads_per_block=(16, 16)) -> cp.ndarray:
         """
         Run a single asynchronous update.
+
+        threads_per_block : tuple[int, int], optional
+            How many threads should be in each block for each dimension of the N
+            x W array, by default `(16, 16)`. See CUDA documentation for details.
 
         Returns
         -------
@@ -69,7 +73,8 @@ class CWSingleStep:
         self.model.simulate_ensemble(
             T_window=1,
             averages_only=False,
-            maskfunction=cw.update_schemes.asynchronous
+            maskfunction=cw.update_schemes.asynchronous,
+            threads_per_block = threads_per_block,
         )
         return self.model.trajectories
 
@@ -77,7 +82,8 @@ class CWSingleStep:
 def simulate_one_step_aligned_states(
     states: np.ndarray | cp.ndarray,
     sampler_nodes: list[str],
-    model: CWSingleStep
+    model: CWSingleStep,
+    threads_per_block = (16, 16),
 ) -> np.ndarray | cp.ndarray:
     """
     Run a single-step simulation on pre-sampled states.
@@ -93,6 +99,9 @@ def simulate_one_step_aligned_states(
         Node names corresponding to rows of `states`
     model : CWSingleStep
         Wrapper instance already initialized with cubewalkers.Model
+    threads_per_block : tuple[int, int], optional
+        How many threads should be in each block for each dimension of the N
+        x W array, by default `(32, 32)`. See CUDA documentation for details.
 
     Returns
     -------
@@ -112,7 +121,7 @@ def simulate_one_step_aligned_states(
 
     # Inject and simulate
     model.set_initial_states(states_aligned)
-    traj = model.simulate_step()  # shape (1, n_variables, n_walkers)
+    traj = model.simulate_step(threads_per_block=threads_per_block)  # shape (1, n_variables, n_walkers)
     updated_states = traj[0, :, :]  # drop time dimension
 
     # Realign back to sampler node order

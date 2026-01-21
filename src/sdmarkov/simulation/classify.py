@@ -1,39 +1,38 @@
 def classify_walkers(states, sampler, xp):
     """
-    Classify each walker into its canonical subcube / group.
+    Classify each walker into its canonical subcube / group
+    using early exit to reduce work and memory.
 
     Args:
         states: (N, W) boolean array
         sampler: GroupSampler object
-        xp: np or cp (NumPy or CuPy)
+        xp: np or cp
 
     Returns:
         group_ids: (W,) int array
     """
     N, W = states.shape
-    K = sampler.masks.shape[1]  # number of canonical subcubes
+    K = sampler.masks.shape[1]
 
-    # --- Fully vectorized version (default) ---
-    states_exp = states[:, None, :]           # (N, 1, W)
-    masks_exp = sampler.masks[:, :, None]    # (N, K, 1)
-    values_exp = sampler.values[:, :, None]  # (N, K, 1)
+    group_ids = xp.full(W, -1, dtype=int)
+    active = xp.ones(W, dtype=bool)   # walkers not yet classified
 
-    matches = (states_exp & masks_exp) == values_exp  # (N, K, W)
-    matches = matches.all(axis=0)                     # (K, W)
+    for k in range(K):
+        if not active.any():
+            break
 
-    # --- Memory-efficient alternative (loop over subcubes) ---
-    # matches = xp.zeros((K, W), bool)
-    # for k in range(K):
-    #     mask_k = sampler.masks[:, k][:, None]   # (N, 1)
-    #     value_k = sampler.values[:, k][:, None] # (N, 1)
-    #     matches[k] = xp.all((states & mask_k) == value_k, axis=0)  # (W,)
-    
+        mask_k = sampler.masks[:, k][:, None]     # (N, 1)
+        value_k = sampler.values[:, k][:, None]   # (N, 1)
+
+        states_a = states[:, active]               # (N, Wa)
+        hit = xp.all((states_a & mask_k) == value_k, axis=0)  # (Wa,)
+
+        if hit.any():
+            idx = xp.nonzero(active)[0][hit]
+            group_ids[idx] = sampler.group_ids[k]
+            active[idx] = False
+
     # Semantic invariant: exactly one match per walker
-    assert xp.all(matches.sum(axis=0) == 1), "Semantic invariant violated"
-
-    # Map subcube index to group id
-    subcube_to_group = sampler.group_ids           # (K,)
-    subcube_indices = xp.argmax(matches, axis=0)  # (W,)
-    group_ids = subcube_to_group[subcube_indices]  # (W,)
+    assert xp.all(group_ids >= 0), "Semantic invariant violated"
 
     return group_ids
