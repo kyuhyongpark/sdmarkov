@@ -1,59 +1,77 @@
+def _classify_full(states, sampler, xp):
+    """
+    Full classification against all canonical subcubes.
+    states: (N, W')
+    returns: (W',) subcube indices
+    """
+
+    # (N, K, W')
+    matches = (states[:, None, :] & sampler.masks[:, :, None]) == sampler.values[:, :, None]
+
+    # (K, W')
+    matches = xp.all(matches, axis=0)
+
+    # assume exactly one match per walker
+    return xp.argmax(matches, axis=0)
+
+
 def classify_walkers(states, sampler, xp, prev_subcube_idx=None):
     """
-    Classify walkers with fast-path using previous subcube index.
+    Classify walkers into canonical subcubes.
 
-    Args:
-        states: (N, W) boolean array
-        sampler: GroupSampler
-        xp: np or cp
-        prev_subcube_idx: (W,) int array of previous k, or None
+    Parameters
+    ----------
+    states : (N, W) bool
+    sampler : object with masks, values, group_ids
+    xp : numpy or cupy
+    prev_subcube_idx : (W,) int or None
 
-    Returns:
-        group_ids: (W,) int array
-        subcube_idx: (W,) int array
+    Returns
+    -------
+    group_ids : (W,) int
+    subcube_idx : (W,) int
     """
+
     N, W = states.shape
-    K = sampler.masks.shape[1]
 
-    group_ids = xp.full(W, -1, dtype=int)
-    subcube_idx = xp.full(W, -1, dtype=int)
-    active = xp.ones(W, dtype=bool)
-
-    # --- Fast path: check previous subcube first ---
+    # ----------------------------
+    # Fast path: validate previous subcube
+    # ----------------------------
     if prev_subcube_idx is not None:
-        for k in xp.unique(prev_subcube_idx):
-            idx = xp.where((prev_subcube_idx == k) & active)[0]
-            if idx.size == 0:
-                continue
+        mask = sampler.masks[:, prev_subcube_idx]      # (N, W)
+        value = sampler.values[:, prev_subcube_idx]    # (N, W)
 
-            mask_k = sampler.masks[:, k][:, None]
-            value_k = sampler.values[:, k][:, None]
+        still_valid = xp.all((states & mask) == value, axis=0)
 
-            hit = xp.all((states[:, idx] & mask_k) == value_k, axis=0)
+        if xp.all(still_valid):
+            return (
+                sampler.group_ids[prev_subcube_idx],
+                prev_subcube_idx,
+            )
 
-            if hit.any():
-                matched = idx[hit]
-                group_ids[matched] = sampler.group_ids[k]
-                subcube_idx[matched] = k
-                active[matched] = False
+        # split walkers
+        valid_idx = xp.where(still_valid)[0]
+        invalid_idx = xp.where(~still_valid)[0]
 
-    # --- Fallback: normal early-exit scan ---
-    for k in range(K):
-        if not active.any():
-            break
+        subcube_idx = xp.empty(W, dtype=prev_subcube_idx.dtype)
+        subcube_idx[valid_idx] = prev_subcube_idx[valid_idx]
 
-        mask_k = sampler.masks[:, k][:, None]
-        value_k = sampler.values[:, k][:, None]
+        # classify only invalid walkers
+        subcube_idx[invalid_idx] = _classify_full(
+            states[:, invalid_idx], sampler, xp
+        )
 
-        idx = xp.where(active)[0]
-        hit = xp.all((states[:, idx] & mask_k) == value_k, axis=0)
+        return (
+            sampler.group_ids[subcube_idx],
+            subcube_idx,
+        )
 
-        if hit.any():
-            matched = idx[hit]
-            group_ids[matched] = sampler.group_ids[k]
-            subcube_idx[matched] = k
-            active[matched] = False
+    # ----------------------------
+    # Slow path: full classification
+    # ----------------------------
+    subcube_idx = _classify_full(states, sampler, xp)
 
-    assert xp.all(group_ids >= 0), "Semantic invariant violated"
-
-    return group_ids, subcube_idx
+    return (
+        sampler.group_ids[subcube_idx],
+        subcube_idx,
+    )
