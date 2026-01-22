@@ -21,6 +21,59 @@ from sdmarkov.succession_diagram import build_sd_trap_spaces
 from sdmarkov.simulation.classify import classify_walkers
 
 
+def compute_max_classify_batch(N, K, xp, safety_fraction=0.3):
+    """
+    Compute maximum safe batch size for full classification.
+
+    Parameters
+    ----------
+    N : int
+        Number of nodes
+    K : int
+        Number of canonical subcubes
+    xp : numpy or cupy
+    safety_fraction : float
+        Fraction of total GPU memory allowed for classification temporaries
+
+    Returns
+    -------
+    int
+        Maximum batch size (>= 1)
+    """
+    # NumPy path: no GPU memory pressure
+    if xp.__name__ == "numpy":
+        return None  # no batching needed
+
+    # CuPy path
+    import cupy as cp
+
+    dev = cp.cuda.Device()
+    mem_total = dev.mem_info[1]  # (free, total)
+
+    # bytes per boolean; cupy.bool_ is 1 byte
+    bytes_per_bool = 1
+
+    mem_budget = int(mem_total * safety_fraction)
+
+    # bytes ≈ N * K * W_batch * bytes_per_bool
+    denom = bytes_per_bool * N * K
+    if denom <= 0:
+        return 1
+
+    max_batch = mem_budget // denom
+    return max(1, int(max_batch))
+
+
+def compute_max_sample_batch(sampler, xp, safety=0.7):
+    mempool = xp.get_default_memory_pool()
+    free_bytes = mempool.free_bytes()
+
+    Kmax = max(len(v) for v in sampler.groups.values())
+
+    bytes_per_walker = Kmax * 4 * 3  # float32, gumbel-based choice
+    return max(1, int(safety * free_bytes // bytes_per_walker))
+
+
 def estimate_sd_transition_matrix(
     rules: str,
     n_walkers: int,
@@ -91,16 +144,29 @@ def estimate_sd_transition_matrix(
         n_walkers=n_walkers,
     )
 
+    N = sampler.masks.shape[0]
+    K = sampler.masks.shape[1]
+
+    max_classify_batch = compute_max_classify_batch(
+        N=N,
+        K=K,
+        xp=xp,
+    )
+
     # --- 5. Estimate transitions ---
     T_empirical = np.zeros((n_groups, n_groups), dtype=float)
 
     for group_name, i in sampler.group_name_to_id.items():
+
+        max_sample_batch = compute_max_sample_batch(sampler, xp)
+
         # Sample walkers from source group
         states, prev_subcube_idx = sample_walkers_from_group(
             sampler,
             target_group=group_name,
             n_walkers=n_walkers,
             xp=xp,
+            max_batch=max_sample_batch,
         )
 
         # One asynchronous step
@@ -117,6 +183,7 @@ def estimate_sd_transition_matrix(
             sampler,
             xp=xp,
             prev_subcube_idx=prev_subcube_idx,
+            max_batch=max_classify_batch,
         )
 
         counts = np.bincount(

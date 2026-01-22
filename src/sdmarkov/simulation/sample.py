@@ -90,7 +90,13 @@ def prepare_group_sampler(
     )
 
 
-def sample_walkers_from_group(sampler, target_group, n_walkers, xp):
+def sample_walkers_from_group(
+    sampler,
+    target_group,
+    n_walkers,
+    xp,
+    max_batch=None,
+):
     # resolve group
     if isinstance(target_group, str):
         try:
@@ -107,18 +113,58 @@ def sample_walkers_from_group(sampler, target_group, n_walkers, xp):
     probs = xp.exp(log_weights)
     probs /= probs.sum()
 
-    subcube_idx = xp.random.choice(ks, size=n_walkers, p=probs)  # (W,)
-
     N = sampler.masks.shape[0]
-    W = n_walkers
 
-    # random free bits
-    states = xp.random.randint(0, 2, size=(N, W), dtype=xp.int8).astype(bool)
+    # ----------------------------
+    # Fast path: no batching
+    # ----------------------------
+    if max_batch is None or n_walkers <= max_batch:
+        subcube_idx = xp.random.choice(ks, size=n_walkers, p=probs)
 
-    mask_matrix = sampler.masks[:, subcube_idx]    # (N, W)
-    value_matrix = sampler.values[:, subcube_idx]  # (N, W)
+        states = xp.random.randint(
+            0, 2, size=(N, n_walkers), dtype=xp.int8
+        ).astype(bool)
 
-    states = (states & ~mask_matrix) | (value_matrix & mask_matrix)
+        mask_matrix = sampler.masks[:, subcube_idx]
+        value_matrix = sampler.values[:, subcube_idx]
+
+        states = (states & ~mask_matrix) | (value_matrix & mask_matrix)
+
+        return states, subcube_idx
+
+    # ----------------------------
+    # Batched path
+    # ----------------------------
+    states_chunks = []
+    idx_chunks = []
+
+    remaining = n_walkers
+    while remaining > 0:
+        Wb = min(remaining, max_batch)
+
+        subcube_idx = xp.random.choice(ks, size=Wb, p=probs)
+
+        states = xp.random.randint(
+            0, 2, size=(N, Wb), dtype=xp.int8
+        ).astype(bool)
+
+        mask_matrix = sampler.masks[:, subcube_idx]
+        value_matrix = sampler.values[:, subcube_idx]
+
+        states = (states & ~mask_matrix) | (value_matrix & mask_matrix)
+
+        states_chunks.append(states)
+        idx_chunks.append(subcube_idx)
+
+        remaining -= Wb
+
+        # help memory reuse
+        del mask_matrix, value_matrix
+
+    states = xp.concatenate(states_chunks, axis=1)
+    subcube_idx = xp.concatenate(idx_chunks)
 
     return states, subcube_idx
+
+
 
