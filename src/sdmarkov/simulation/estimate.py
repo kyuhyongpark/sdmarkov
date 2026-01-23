@@ -191,6 +191,10 @@ def estimate_sd_transition_matrix(
             minlength=n_groups,
         )
         T_empirical[i] = counts / counts.sum()
+        
+        # END OF GROUP
+        if xp is cp:
+            cp.get_default_memory_pool().free_all_blocks()
 
     if return_aux:
         return T_empirical, {
