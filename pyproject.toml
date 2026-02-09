@@ -10,12 +10,14 @@ dependencies = [
     "networkx",
     "numpy",
     "pyboolnet @ git+https://github.com/hklarner/pyboolnet",
+    "scipy",
 ]
 
 [project.optional-dependencies]
 dev = [
     "hypothesis",
     "ipykernel",
+    "lxml",
     "matplotlib",
     "pandas",
     "pystablemotifs",
