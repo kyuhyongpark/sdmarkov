@@ -2,13 +2,19 @@ import unittest
 
 import numpy as np
 
-from sdmarkov.matrix_operations import reorder_matrix
-from sdmarkov.matrix_operations import compress_matrix, expand_matrix
-from sdmarkov.matrix_operations import get_rms_diff, get_kld, get_confusion_matrix
-from sdmarkov.matrix_operations import get_reachability
-from sdmarkov.matrix_operations import is_block_triangular, get_block_triangular
-from sdmarkov.matrix_operations import enforce_asynchronous
 from sdmarkov.graph import get_stg
+from sdmarkov.matrix_operations import (
+    reorder_matrix,
+    compress_matrix,
+    expand_matrix,
+    get_rms_diff,
+    get_kld,
+    get_confusion_matrix,
+    get_reachability,
+    is_block_triangular,
+    get_block_triangular,
+    enforce_asynchronous
+)
 from sdmarkov.scc_dags import get_scc_dag
 
 class TestReorderMatrix(unittest.TestCase):

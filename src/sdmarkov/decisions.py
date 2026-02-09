@@ -1,9 +1,9 @@
 import numpy as np
-import networkx as nx
 
 from sdmarkov.graph import get_stg, get_markov_chain
-from sdmarkov.scc_dags import get_scc_dag, get_attractor_states
 from sdmarkov.matrix_operations import nsquare
+from sdmarkov.scc_dags import get_scc_dag, get_attractor_states
+
 
 def get_decision_matrix(
     transition_matrix: np.ndarray,

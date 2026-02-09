@@ -1,6 +1,6 @@
 import numpy as np
 
-from sdmarkov.helper import check_transition_matrix
+from sdmarkov.validation import check_transition_matrix
 
 
 def get_convergence_matrix(

@@ -8,6 +8,9 @@ The SD Markov chain is a coarse-grained representation of the Boolean network. T
 Here, we consider that the state transition graph (STG) of the Boolean network is known. We use this STG to construct the transition probabilities in the Markov chain.  We evaluate the SD Markov chain’s ability to recapitulate the Boolean network’s attractors, attractor basins, decision transitions, and trajectories.  The evaluation metrics include precision, recall, negative predictive value (NPV), and specificity, as well as the quantitative metrics of root mean square difference (RMSD) and Kullback-Leibler Divergence (KLD). 
 
 ## Requirements 
+This project specifies top-level dependencies in `pyproject.toml` for clarity, and provides a pinned `requirements.txt` for exact environment reproduction.
+
+Major dependencies:  
 biobalm  https://github.com/jcrozum/biobalm  
 pystablemotifs https://github.com/jcrozum/pystablemotifs  
 pyboolnet https://github.com/hklarner/pyboolnet  

@@ -3,9 +3,16 @@ import unittest
 import networkx as nx
 import numpy as np
 
-from sdmarkov.paths import get_all_paths, get_all_shortest_paths, get_markov_chain_path_probs, get_stg_path_probs, solve_matrix_equation
-from sdmarkov.paths import compare_path_reachability, compare_path_rmsd
 from sdmarkov.graph import get_markov_chain
+from sdmarkov.paths import (
+    get_all_paths,
+    get_all_shortest_paths,
+    get_markov_chain_path_probs,
+    get_stg_path_probs,
+    solve_matrix_equation,
+    compare_path_reachability,
+    compare_path_rmsd,
+)
 
 class TestGetAllPaths(unittest.TestCase):
     def test_empty_graph(self):

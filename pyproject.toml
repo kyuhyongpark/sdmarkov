@@ -6,11 +6,27 @@ authors = [{ name = "Kyu Hyong Park", email = "kyuhyongpark@gmail.com" }]
 readme = "README.md"
 license = { file = "LICENSE" }
 dependencies = [
-    "ipykernel",
-    "seaborn",
     "biobalm",
+    "networkx",
+    "numpy",
     "pyboolnet @ git+https://github.com/hklarner/pyboolnet",
+    "scipy",
+]
+
+[project.optional-dependencies]
+dev = [
+    "hypothesis",
+    "ipykernel",
+    "lxml",
+    "matplotlib",
+    "pandas",
     "pystablemotifs",
+    "pytest",
+    "seaborn",
+]
+gpu = [
+    "cupy-cuda11x==13.6.0",
+    "cubewalkers @ git+https://github.com/jcrozum/cubewalkers",
 ]
 
 [tool.setuptools]

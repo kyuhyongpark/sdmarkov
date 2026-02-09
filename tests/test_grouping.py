@@ -1,7 +1,11 @@
 import unittest
 
-from sdmarkov.grouping import sd_grouping, null_grouping
-from sdmarkov.grouping import divide_list_into_sublists, random_grouping
+from sdmarkov.grouping import (
+    sd_grouping,
+    null_grouping,
+    divide_list_into_sublists,
+    random_grouping,
+)
 
 
 class TestSdGrouping(unittest.TestCase):

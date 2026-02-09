@@ -1,11 +1,7 @@
-import math
 import random
-from collections import Counter
 
-import matplotlib.pyplot as plt
-
+from sdmarkov.representation import states_to_indices
 from sdmarkov.succession_diagram import build_sd_trap_spaces, assign_states_to_trap_spaces
-from sdmarkov.helper import states_to_indices
 
 
 def sd_grouping(bnet: str, DEBUG: bool = False) -> list[list[int]]:
@@ -28,7 +24,7 @@ def sd_grouping(bnet: str, DEBUG: bool = False) -> list[list[int]]:
     Examples
     --------
     >>> sd_grouping("A, A | B & C\nB, B & !C\nC, B & !C | !C & !D | !B & C & D\nD, !A & !B & !C & !D | !A & C & D")
-    [[4, 5, 6, 7], [], [0, 1, 2], [3], [12, 14], [8, 10], [13, 15], [9, 11]]
+    [[4, 5, 6, 7], [0, 1, 2], [3], [13, 15], [12, 14], [9, 11], [8, 10]]
     """
     nodes, trap_spaces = build_sd_trap_spaces(bnet, DEBUG=DEBUG)
     sd_group_states = assign_states_to_trap_spaces(nodes, trap_spaces, DEBUG=DEBUG)
@@ -214,71 +210,3 @@ def divide_list_into_sublists(
         if all(len(sublist) >= m for sublist in sublists):  # If no sublist is smaller than m
             return sorted(sublists)
 
-
-# Function to calculate the number of configurations based on the sublist lengths
-def calculate_combinations(lengths):
-    total_length = sum(lengths)
-    result = math.factorial(total_length)
-    
-    # order within each sublist is irrelevant
-    for length in lengths:
-        result //= math.factorial(length)
-    
-    # sublists of the same length are indistinguishable
-    length_distributions = Counter(lengths)
-    for length, count in length_distributions.items():
-        result //= math.factorial(count)
-
-    return result
-
-
-# Function to run and compare the results with possible combinations
-def compare_with_possible_combinations(input_list, N, m, num_runs=1000):
-    # Store the length combinations
-    length_combinations = []
-    
-    for i in range(num_runs):
-        sublists = divide_list_into_sublists(input_list, N, m, seed=i)
-        sublist_lengths = [len(sublist) for sublist in sublists]
-        length_combinations.append(tuple(sorted(sublist_lengths)))
-    
-    # Count the frequencies of length combinations
-    length_frequencies = Counter(length_combinations)
-    
-    # Calculate the number of configurations for each unique combination
-    combinations_with_configurations = {}
-
-    for combination, frequency in length_frequencies.items():
-        configurations = calculate_combinations(combination)
-        combinations_with_configurations[combination] = {'frequency': frequency, 'configurations': configurations}
-
-    # sort the combinations_with_configurations by combination
-    combinations_with_configurations = dict(sorted(combinations_with_configurations.items()))
-
-    # Output comparison results
-    for combination, data in combinations_with_configurations.items():
-        print(f"  {combination}: Frequency = {data['frequency']}, Possible configurations = {data['configurations']}, ratio = {data['frequency'] / data['configurations']}")
-    
-    # Plot histogram comparing the distributions of sublist lengths for each method   
-    plt.figure(figsize=(10, 6))
-
-    flattened_lengths = [length for lengths in length_combinations for length in lengths]
-    plt.hist(flattened_lengths, bins=range(1, max(flattened_lengths) + 2), edgecolor='black', alpha=0.5)
-    
-    plt.title('Distribution of Sublist Lengths')
-    plt.xlabel('Sublists Length')
-    plt.ylabel('Frequency')
-    plt.xticks(range(1, max(flattened_lengths) + 1))
-    plt.grid(True)
-    plt.show()
-
-
-if __name__ == "__main__":
-    # Example input and method parameters
-    input_list = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-    N = 3  # Number of sublists
-    m = 1  # Minimum number of elements in each sublist
-    num_runs = 100000  # Number of simulations
-
-    # Run the comparison
-    compare_with_possible_combinations(input_list, N, m, num_runs)

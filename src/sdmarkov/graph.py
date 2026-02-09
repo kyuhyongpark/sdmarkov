@@ -1,7 +1,8 @@
 import networkx as nx
 import numpy as np
 
-from sdmarkov.helper import indices_to_states, check_transition_matrix
+from sdmarkov.representation import indices_to_states
+from sdmarkov.validation import check_transition_matrix
 
 
 def get_stg(transition_matrix: np.ndarray, DEBUG: bool = False) -> nx.DiGraph:

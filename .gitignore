@@ -169,3 +169,7 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# development validations and benchmarks
+.validation/
+.benchmark/

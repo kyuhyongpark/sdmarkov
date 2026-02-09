@@ -5,7 +5,12 @@ from pyboolnet.external.bnet2primes import bnet_text2primes
 from pyboolnet.state_transition_graphs import primes2stg
 
 from sdmarkov.attractors import get_predicted_attractors
-from sdmarkov.basins import get_convergence_matrix, get_strong_basins, get_basin_fractions, get_average_node_values
+from sdmarkov.basins import (
+    get_convergence_matrix,
+    get_strong_basins,
+    get_basin_fractions,
+    get_average_node_values,
+)
 from sdmarkov.grouping import sd_grouping, null_grouping
 from sdmarkov.matrix_operations import nsquare, compress_matrix, expand_matrix
 from sdmarkov.transition_matrix import get_transition_matrix
