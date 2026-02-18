@@ -4,7 +4,45 @@ from sdmarkov.representation import states_to_indices
 from sdmarkov.succession_diagram import build_sd_trap_spaces, assign_states_to_trap_spaces
 
 
-def sd_grouping(bnet: str, DEBUG: bool = False) -> list[list[int]]:
+from dataclasses import dataclass
+from typing import Any
+
+
+@dataclass(slots=True)
+class SDGroupingReport:
+    groups: list[list[int]]
+    trap_spaces: list[Any]
+    group_to_trap_space: dict[int, int]
+
+    @property
+    def group_sizes(self) -> dict[int, int]:
+        return {gi: len(g) for gi, g in enumerate(self.groups)}
+
+    def label_group(self, gi: int) -> str:
+        return f"G{gi}"
+
+    def label_trap_space(self, ti: int) -> str:
+        return f"T{ti}"
+
+    def trap_space_of_group(self, gi: int) -> int:
+        return self.group_to_trap_space[gi]
+
+    def summary(self) -> list[dict[str, Any]]:
+        """
+        Convenience: one row per group with labels and sizes.
+        """
+        rows = []
+        for gi, group in enumerate(self.groups):
+            ti = self.group_to_trap_space[gi]
+            rows.append({
+                "group": self.label_group(gi),
+                "trap_space": self.label_trap_space(ti),
+                "size": len(group),
+            })
+        return rows
+
+
+def sd_grouping(bnet: str, report:bool = False, DEBUG: bool = False) -> list[list[int]]:
     """
     Get a sd grouping of a state index by when given a Boolean network in bnet format.
 
@@ -31,10 +69,25 @@ def sd_grouping(bnet: str, DEBUG: bool = False) -> list[list[int]]:
 
     indices = states_to_indices(sd_group_states, DEBUG=DEBUG)
 
-    # remove empty groups
-    indices = [group for group in indices if group]
+    # remove empty groups, but keep mapping to trap spaces
+    filtered_groups = []
+    group_to_trap_space = {}
 
-    return indices
+    gi = 0
+    for ti, group in enumerate(indices):
+        if group:
+            filtered_groups.append(group)
+            group_to_trap_space[gi] = ti
+            gi += 1
+
+    if not report:
+        return filtered_groups
+
+    return SDGroupingReport(
+        groups=filtered_groups,
+        trap_spaces=trap_spaces,
+        group_to_trap_space=group_to_trap_space,
+    )
 
 def null_grouping(bnet: str, DEBUG: bool = False) -> list[list[int]]:
     """
