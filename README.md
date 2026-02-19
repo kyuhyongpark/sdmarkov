@@ -18,7 +18,7 @@ Networkx (v2.4+) https://github.com/networkx/networkx/
 
 ## Documentation
 
-See `docs/documentation.html` for general APIs.
+See [documentation](https://kyuhyongpark.github.io/sdmarkov/) for general APIs.
 
 The Jupyter Notebook `example.ipynb` provides a usage example of our code.
 
