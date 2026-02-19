@@ -18,6 +18,8 @@ Networkx (v2.4+) https://github.com/networkx/networkx/
 
 ## Documentation
 
+See `docs/documentation.html` for general APIs.
+
 The Jupyter Notebook `example.ipynb` provides a usage example of our code.
 
 The `models/random_nk3`  directory lists the 100 Boolean networks used to evaluate the effectiveness of the SD Markov chain. Each file contains the Boolean functions of the nodes in bnet format. 
